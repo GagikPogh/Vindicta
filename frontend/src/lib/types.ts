@@ -186,3 +186,49 @@ export interface PhoneLookupHistoryItem {
   profile_count: number;
   created_at: string;
 }
+
+export interface WebNode {
+  id: string;
+  node_type: string;
+  label: string;
+  description?: string;
+  x: number;
+  y: number;
+  color?: string;
+  icon?: string;
+  properties: Record<string, unknown>;
+  is_pinned: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface WebEdge {
+  id: string;
+  source_id: string;
+  target_id: string;
+  label: string;
+  edge_type: string;
+  properties: Record<string, unknown>;
+  strength: number;
+}
+
+export interface InvestigationWeb {
+  id: string;
+  title: string;
+  description?: string;
+  revision: number;
+  is_default: boolean;
+  viewport: Record<string, unknown>;
+  theme: Record<string, unknown>;
+  nodes: WebNode[];
+  edges: WebEdge[];
+  updated_at: string;
+}
+
+export interface WebSyncResult {
+  success: boolean;
+  revision: number;
+  conflict: boolean;
+  web?: InvestigationWeb;
+  message?: string;
+}

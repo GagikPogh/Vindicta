@@ -5,13 +5,17 @@ import type {
   Entity,
   GraphResponse,
   Investigation,
+  InvestigationWeb,
   PhoneLookupHistoryItem,
   PhoneLookupResult,
   Report,
+  WebSyncResult,
   SearchResponse,
   TimelineEvent,
   TokenResponse,
   User,
+  WebEdge,
+  WebNode,
 } from "./types";
 
 class ApiError extends Error {
@@ -228,6 +232,36 @@ export const api = {
       request<{ message: string }>("/api/v1/phone/profiles", {
         method: "POST",
         body: JSON.stringify(data),
+      }),
+  },
+
+  web: {
+    getDefault: () => request<InvestigationWeb>("/api/v1/web/default"),
+    get: (id: string, sinceRevision?: number) =>
+      request<InvestigationWeb>(
+        `/api/v1/web/${id}${sinceRevision ? `?since_revision=${sinceRevision}` : ""}`
+      ),
+    list: () => request<Array<{ id: string; title: string; revision: number; node_count: number; edge_count: number; updated_at: string }>>("/api/v1/web"),
+    sync: (id: string, data: {
+      revision: number;
+      viewport?: Record<string, unknown>;
+      nodes: WebNode[];
+      edges: WebEdge[];
+      deleted_node_ids?: string[];
+      deleted_edge_ids?: string[];
+    }) =>
+      request<WebSyncResult>(`/api/v1/web/${id}/sync`, {
+        method: "POST",
+        body: JSON.stringify({
+          ...data,
+          deleted_node_ids: data.deleted_node_ids || [],
+          deleted_edge_ids: data.deleted_edge_ids || [],
+        }),
+      }),
+    create: (title: string, description?: string) =>
+      request<InvestigationWeb>("/api/v1/web", {
+        method: "POST",
+        body: JSON.stringify({ title, description }),
       }),
   },
 };

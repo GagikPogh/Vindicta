@@ -6,6 +6,7 @@ import {
   FileText,
   GitBranch,
   LayoutDashboard,
+  Network,
   Phone,
   Search,
   Settings,
@@ -16,9 +17,10 @@ import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/dashboard", label: "Home", icon: LayoutDashboard },
+  { href: "/web", label: "Web", icon: Network },
   { href: "/phone", label: "Phone", icon: Phone },
-  { href: "/search", label: "Search", icon: Search },
   { href: "/graph", label: "Graph", icon: GitBranch },
+  { href: "/search", label: "Search", icon: Search },
   { href: "/timeline", label: "Time", icon: Clock },
   { href: "/reports", label: "Reports", icon: FileText },
   { href: "/settings", label: "Settings", icon: Settings },

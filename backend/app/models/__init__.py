@@ -190,3 +190,4 @@ class Report(Base):
 
 
 from app.models.phone import ContactTag, PhoneLookupLog, PhoneNumber, SocialProfile  # noqa: E402, F401
+from app.models.web import InvestigationWeb, WebEdge, WebNode  # noqa: E402, F401

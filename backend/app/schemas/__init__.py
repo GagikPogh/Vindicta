@@ -306,3 +306,91 @@ class PhoneLookupHistoryItem(BaseModel):
     tag_count: int
     profile_count: int
     created_at: str
+
+
+class WebNodeSchema(BaseModel):
+    id: UUID
+    node_type: str
+    label: str
+    description: Optional[str] = None
+    x: float = 0
+    y: float = 0
+    color: Optional[str] = None
+    icon: Optional[str] = None
+    properties: dict[str, Any] = Field(default_factory=dict)
+    is_pinned: bool = False
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+
+class WebEdgeSchema(BaseModel):
+    id: UUID
+    source_id: UUID
+    target_id: UUID
+    label: str = "связан с"
+    edge_type: str = "custom"
+    properties: dict[str, Any] = Field(default_factory=dict)
+    strength: float = 1.0
+
+
+class InvestigationWebResponse(BaseModel):
+    id: UUID
+    title: str
+    description: Optional[str] = None
+    revision: int
+    is_default: bool
+    viewport: dict[str, Any] = Field(default_factory=dict)
+    theme: dict[str, Any] = Field(default_factory=dict)
+    nodes: list[WebNodeSchema]
+    edges: list[WebEdgeSchema]
+    updated_at: datetime
+
+
+class InvestigationWebSummary(BaseModel):
+    id: UUID
+    title: str
+    description: Optional[str] = None
+    revision: int
+    is_default: bool
+    node_count: int = 0
+    edge_count: int = 0
+    updated_at: datetime
+
+
+class WebSyncRequest(BaseModel):
+    revision: int
+    viewport: Optional[dict[str, Any]] = None
+    nodes: list[WebNodeSchema] = Field(default_factory=list)
+    edges: list[WebEdgeSchema] = Field(default_factory=list)
+    deleted_node_ids: list[UUID] = Field(default_factory=list)
+    deleted_edge_ids: list[UUID] = Field(default_factory=list)
+
+
+class WebSyncResponse(BaseModel):
+    success: bool
+    revision: int
+    conflict: bool = False
+    web: Optional[InvestigationWebResponse] = None
+    message: Optional[str] = None
+
+
+class CreateWebRequest(BaseModel):
+    title: str = Field(default="Новая паутина", min_length=1, max_length=255)
+    description: Optional[str] = None
+
+
+class CreateWebNodeRequest(BaseModel):
+    node_type: str
+    label: str = Field(min_length=1, max_length=255)
+    description: Optional[str] = None
+    x: float = 0
+    y: float = 0
+    color: Optional[str] = None
+    properties: dict[str, Any] = Field(default_factory=dict)
+
+
+class CreateWebEdgeRequest(BaseModel):
+    source_id: UUID
+    target_id: UUID
+    label: str = "связан с"
+    edge_type: str = "custom"

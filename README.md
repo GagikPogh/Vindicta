@@ -49,6 +49,7 @@ TWILIO_AUTH_TOKEN=your_token
 - `/` — Landing
 - `/dashboard` — Dashboard
 - `/phone` — Phone Intelligence
+- `/web` — Detective Web (паутина связей, синхронизация)
 - `/search` — Entity search
 - `/investigations` — Cases
 - `/graph` — Relationship graph
