@@ -1,4 +1,5 @@
 from functools import lru_cache
+import os
 from typing import List
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -39,7 +40,18 @@ class Settings(BaseSettings):
 
     @property
     def cors_origins_list(self) -> List[str]:
-        return [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
+        origins = [origin.strip() for origin in self.CORS_ORIGINS.split(",") if origin.strip()]
+        vercel_url = os.environ.get("VERCEL_URL")
+        if vercel_url:
+            origins.append(f"https://{vercel_url}")
+        return origins
+
+    @property
+    def frontend_url(self) -> str:
+        vercel_url = os.environ.get("VERCEL_URL")
+        if vercel_url:
+            return f"https://{vercel_url}"
+        return self.FRONTEND_URL
 
 
 @lru_cache
