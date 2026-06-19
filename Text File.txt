@@ -1,0 +1,321 @@
+﻿'use client';
+import { useInView } from '../../hooks/useInView';
+import { useScrambleText } from '../../hooks/useScrambleText';
+
+/**
+ * <ScrambleText text="ACCESS GRANTED" /> — decrypt-reveal on scroll into view.
+ * className passes straight through to the <span>.
+ */
+export default function ScrambleText({ text, className = '', as: Tag = 'span', speed, revealDelay }) {
+  const [ref, inView] = useInView({ threshold: 0.4 });
+  const display = useScrambleText(text, { trigger: inView, speed, revealDelay });
+
+  return (
+    <Tag ref={ref} className={`font-mono tabular-nums ${className}`} aria-label={text}>
+      {display}
+    </Tag>
+  );
+}
+
+
+
+'use client'; import { motion } from 'framer-motion'; import { useInView } from '../../hooks/useInView';
+/**
+    • ...
+    • Emerge-from-darkness reveal: blur + slight scale + translateY, fading in.
+    • Pass index for automatic stagger inside a list/grid. */ export default function ScrollReveal({ children, index = 0, className = '', staggerMs = 70 }) { const [ref, inView] = useInView({ threshold: 0.15 });
+return ( <motion.div ref={ref} className={className} initial={{ opacity: 0, y: 18, scale: 0.98, filter: 'blur(6px)' }} animate={ inView ? { opacity: 1, y: 0, scale: 1, filter: 'blur(0px)' } : { opacity: 0, y: 18, scale: 0.98, filter: 'blur(6px)' } } transition={{ duration: 0.6, delay: (index * staggerMs) / 1000, ease: [0.2, 0.9, 0.2, 1], }} > {children} </motion.div> ); }
+/** Wrap a list and every direct child gets staggered reveal automatically. */ export function ScrollRevealList({ children, className = '', staggerMs = 70 }) { const items = Array.isArray(children) ? children : [children]; return (
+{items.map((child, i) => ( ))} 
+); } 
+
+
+
+'use client'; import { motion } from 'framer-motion';
+/**
+    • ВОЙТИ
+    • Primary CTA: red gradient pulse + slice-glitch overlay + HUD corner brackets
+    • on hover. Pure CSS/Framer — no canvas. */ export default function GlitchButton({ children, className = '', ...props }) { return ( <motion.button whileTap={{ scale: 0.97 }} className={[ 'group relative isolate overflow-hidden px-8 py-3', 'font-display text-sm font-semibold tracking-[0.18em] uppercase text-cyber-white', 'bg-gradient-to-r from-crimson-deep via-crimson to-crimson-deep bg-[length:200%_100%]', 'transition-[background-position,box-shadow] duration-500', 'hover:bg-[position:100%_0] hover:shadow-glow-md', 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-crimson', className, ].join(' ')} {...props}
+      {/* glitch slice overlay, only animates on hover via group-hover /}  {/ HUD corner brackets, fade in on hover */}    
+      {children} </motion.button> ); }
+
+
+
+
+
+'use client'; import { useEffect, useState } from 'react'; import { motion, AnimatePresence } from 'framer-motion'; import GlitchButton from '../ui/GlitchButton'; import ScrambleText from '../ui/ScrambleText';
+const HASH_CHARS = '0123456789abcdef'; function fakeHash(len = 12) { return Array.from({ length: len }, () => HASH_CHARS[Math.floor(Math.random() * 16)]).join(''); }
+/**
+    • Vindicta auth field: red focus glow + a short live "hash" readout
+    • that regenerates while the field is focused — sells the idea that
+    • every keystroke is being fingerprinted by the system. */ function ScanField({ label, type = 'text', name, autoComplete }) { const [focused, setFocused] = useState(false); const [hash, setHash] = useState(fakeHash());
+useEffect(() => { if (!focused) return; const id = setInterval(() => setHash(fakeHash()), 220); return () => clearInterval(id); }, [focused]);
+return (
+setFocused(true)} onBlur={() => setFocused(false)} className={[ 'w-full bg-graphite-2/80 px-4 py-3 font-mono text-sm text-cyber-white', 'border border-white/10 outline-none transition-all duration-300', 'placeholder:text-cyber-mute/50', focused ? 'border-crimson shadow-glow-sm' : 'hover:border-white/20', ].join(' ')} /> )} 
+); } 
+/**
+    • Full auth screen. The form "assembles" top-to-bottom on mount:
+    • a scanline sweeps once, each field clips in sequentially. */ export default function AuthScreen({ mode = 'login', onSubmit }) { const fields = mode === 'register' ? [ { label: 'Кодовое имя', name: 'username', autoComplete: 'username' }, { label: 'Email', name: 'email', type: 'email', autoComplete: 'email' }, { label: 'Пароль', name: 'password', type: 'password', autoComplete: 'new-password' }, ] : [ { label: 'Кодовое имя / Email', name: 'login', autoComplete: 'username' }, { label: 'Пароль', name: 'password', type: 'password', autoComplete: 'current-password' }, ];
+return (
+  <motion.div
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    transition={{ duration: 0.4 }}
+    className="relative z-10 w-full max-w-sm"
+  >
+    {/* one-shot scanline sweep across the whole card on mount */}
+    <motion.div
+      aria-hidden
+      initial={{ top: '-10%' }}
+      animate={{ top: '110%' }}
+      transition={{ duration: 0.9, ease: 'easeIn' }}
+      className="pointer-events-none absolute left-0 z-20 h-px w-full bg-crimson shadow-glow-sm"
+    />
+
+    <div className="v-hud-corners relative border border-white/10 bg-graphite/80 p-8 backdrop-blur-sm">
+      <ScrambleText
+        as="h1"
+        text={mode === 'register' ? 'РЕГИСТРАЦИЯ ОПЕРАТОРА' : 'ДОСТУП К СИСТЕМЕ'}
+        className="mb-1 block font-display text-lg font-bold tracking-[0.12em] text-cyber-white"
+      />
+      <p className="mb-7 font-mono text-[11px] uppercase tracking-[0.2em] text-cyber-mute">
+        Vindicta // Secure Terminal
+      </p>
+
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          onSubmit?.(Object.fromEntries(new FormData(e.target)));
+        }}
+        className="space-y-5"
+      >
+        {fields.map((f, i) => (
+          <motion.div
+            key={f.name}
+            initial={{ clipPath: 'inset(0 0 100% 0)', opacity: 0 }}
+            animate={{ clipPath: 'inset(0 0 0% 0)', opacity: 1 }}
+            transition={{ duration: 0.5, delay: 0.25 + i * 0.12, ease: [0.2, 0.9, 0.2, 1] }}
+          >
+            <ScanField {...f} />
+          </motion.div>
+        ))}
+
+        <GlitchButton type="submit" className="mt-2 w-full">
+          {mode === 'register' ? 'Создать доступ' : 'Войти'}
+        </GlitchButton>
+      </form>
+    </div>
+  </motion.div>
+</div>
+); }
+
+
+
+
+
+
+'use client';
+import { motion } from 'framer-motion';
+import ScrambleText from '../ui/ScrambleText';
+
+/**
+ * <GraphHUD nodeCount={42} edgeCount={87} />
+ * Absolute-positioned decorative overlay sitting above the ForceGraph2D canvas.
+ * pointer-events-none everywhere except nothing — it's purely decorative.
+ */
+export default function GraphHUD({ nodeCount = 0, edgeCount = 0, label = 'ПАУТИНА' }) {
+  return (
+    <div className="pointer-events-none absolute inset-0 z-10">
+      {/* coordinate grid, very faint */}
+      <div className="absolute inset-0 bg-grid-lines bg-grid opacity-[0.5]" />
+
+      {/* corner frames */}
+      {['top-4 left-4', 'top-4 right-4', 'bottom-4 left-4', 'bottom-4 right-4'].map((pos, i) => (
+        <div key={pos} className={`absolute ${pos} h-9 w-9 opacity-70`}>
+          <svg viewBox="0 0 36 36" className="h-full w-full">
+            <path
+              d={
+                i === 0
+                  ? 'M2 14 V2 H14'
+                  : i === 1
+                  ? 'M22 2 H34 V14'
+                  : i === 2
+                  ? 'M2 22 V34 H14'
+                  : 'M22 34 H34 V22'
+              }
+              fill="none"
+              stroke="#FF0033"
+              strokeWidth="1.5"
+            />
+          </svg>
+        </div>
+      ))}
+
+      {/* center crosshair, ultra subtle */}
+      <div className="absolute left-1/2 top-1/2 h-10 w-10 -translate-x-1/2 -translate-y-1/2 opacity-20">
+        <div className="absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-crimson" />
+        <div className="absolute left-0 top-1/2 h-px w-full -translate-y-1/2 bg-crimson" />
+      </div>
+
+      {/* status readout, top-left */}
+      <div className="absolute left-8 top-8 font-mono text-[11px] uppercase tracking-[0.18em] text-cyber-mute">
+        <ScrambleText text={label} className="block text-cyber-white" />
+        <div className="mt-1 flex items-center gap-1.5">
+          <motion.span
+            className="h-1.5 w-1.5 rounded-full bg-cyber-green"
+            animate={{ opacity: [1, 0.3, 1] }}
+            transition={{ duration: 1.6, repeat: Infinity }}
+          />
+          <span>System Status: Active</span>
+        </div>
+      </div>
+
+      {/* node/edge counters, top-right */}
+      <div className="absolute right-8 top-8 text-right font-mono text-[11px] uppercase tracking-[0.18em] text-cyber-mute">
+        <div>Nodes: <span className="text-cyber-white">{nodeCount}</span></div>
+        <div>Edges: <span className="text-cyber-white">{edgeCount}</span></div>
+      </div>
+    </div>
+  );
+}
+
+
+
+'use client'; import { useCallback, useRef } from 'react';
+/**
+    • react-force-graph-2d renders to a single , so node/edge "animation"
+    • has to be painted manually inside nodeCanvasObject / linkCanvasObject on
+    • every tick, rather than via CSS or Framer. This module provides:
+        ◦ useNodeRipples(): tracks active click-ripples and exposes addRipple()
+        ◦ paintNode(): pulsing glow + label, call from 
+        ◦ paintLink(): animated flowing dash from source -> target, call from
+    • Usage:
+    • const { ripples, addRipple } = useNodeRipples();
+    • <ForceGraph2D
+    • onNodeClick={(node) => addRipple(node)}
+    • nodeCanvasObject={(node, ctx, scale) => paintNode(node, ctx, scale, ripples)}
+    • linkCanvasObject={(link, ctx) => paintLink(link, ctx)}
+    • linkCanvasObjectMode={() => 'replace'}
+    • /> */
+const TYPE_COLORS = { person: '#FF335C', event: '#FF8A65', location: '#7CFFB2', organization: '#FFD166', fact: '#E8E8F0', document: '#8A8A99', phone: '#FF0033', note: '#B8B8C8', default: '#FF0033', };
+export function useNodeRipples() { const ripples = useRef([]); // [{ x, y, start }]
+const addRipple = useCallback((node) => { if (node?.x == null) return; ripples.current.push({ x: node.x, y: node.y, start: performance.now() }); // keep the list small if (ripples.current.length > 12) ripples.current.shift(); }, []);
+return { ripples, addRipple }; }
+const RIPPLE_DURATION = 900; // ms, matches tailwind ripple keyframe timing
+/** Draw a single pulsing node with its label. Call once per node per frame. */ export function paintNode(node, ctx, globalScale, ripplesRef) { const r = 5 + (node.weight || 0) * 0.6; const color = TYPE_COLORS[node.type] || TYPE_COLORS.default; const t = performance.now() / 1000;
+// ambient pulse: glow radius breathes slowly, offset by node id so the // whole graph doesn't pulse in lockstep const phase = (node.id ? hashSeed(node.id) : 0) % 1000; const pulse = 0.5 + 0.5 * Math.sin(t * 1.6 + phase);
+ctx.save(); ctx.shadowColor = color; ctx.shadowBlur = 6 + pulse * 10; ctx.fillStyle = color; ctx.beginPath(); ctx.arc(node.x, node.y, r, 0, 2 * Math.PI); ctx.fill(); ctx.restore();
+// label, only above a zoom threshold to avoid clutter if (globalScale > 1.1) { ctx.font = ${10 / globalScale}px "JetBrains Mono", monospace; ctx.fillStyle = 'rgba(232,232,240,0.85)'; ctx.textAlign = 'center'; ctx.fillText(node.label || node.name || '', node.x, node.y + r + 9 / globalScale); }
+// active ripples belonging to this node's location if (ripplesRef?.current?.length) { const now = performance.now(); ripplesRef.current = ripplesRef.current.filter((rp) => now - rp.start < RIPPLE_DURATION); for (const rp of ripplesRef.current) { const elapsed = (now - rp.start) / RIPPLE_DURATION; const radius = r + elapsed * r * 9; const alpha = 1 - elapsed; ctx.save(); ctx.strokeStyle = rgba(255,0,51,${alpha * 0.7}); ctx.lineWidth = 1.5 / globalScale; ctx.beginPath(); ctx.arc(rp.x, rp.y, radius, 0, 2 * Math.PI); ctx.stroke(); ctx.restore(); } } }
+/** Draw a link with small light particles flowing parent -> child. */ export function paintLink(link, ctx) { const src = link.source; const tgt = link.target; if (!src || !tgt || src.x == null || tgt.x == null) return;
+ctx.save(); ctx.strokeStyle = 'rgba(255,0,51,0.18)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(src.x, src.y); ctx.lineTo(tgt.x, tgt.y); ctx.stroke();
+// 2-3 particles per link, looping along the path based on wall-clock time const dx = tgt.x - src.x; const dy = tgt.y - src.y; const dist = Math.hypot(dx, dy); if (dist < 1) { ctx.restore(); return; }
+const speed = 0.00035; // fraction of path per ms const now = performance.now(); const particleCount = 2;
+for (let i = 0; i < particleCount; i++) { const offset = i / particleCount; let p = ((now * speed + offset) % 1 + 1) % 1; const px = src.x + dx * p; const py = src.y + dy * p;
+ctx.beginPath();
+ctx.fillStyle = '#FF335C';
+ctx.shadowColor = '#FF0033';
+ctx.shadowBlur = 4;
+ctx.arc(px, py, 1.6, 0, 2 * Math.PI);
+ctx.fill();
+}
+ctx.restore(); }
+function hashSeed(id) { const s = String(id); let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 1000; return h; }
+
+
+
+'use client';
+import { motion } from 'framer-motion';
+
+/**
+ * <ScanningIris /> — cyclic diaphragm/eye-scan loader, replacing the
+ * generic spinner during phone-number analysis.
+ */
+export default function ScanningIris({ size = 96 }) {
+  const r = size / 2 - 6;
+  const circumference = 2 * Math.PI * r;
+
+  return (
+    <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="animate-irisSpin">
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke="#3a0010"
+          strokeWidth="2"
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke="#FF0033"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          className="animate-irisOpen"
+          style={{ filter: 'drop-shadow(0 0 6px rgba(255,0,51,0.6))' }}
+        />
+      </svg>
+
+      {/* iris "pupil" — contracts and dilates like a camera diaphragm */}
+      <motion.div
+        className="absolute rounded-full bg-crimson/80"
+        style={{ boxShadow: '0 0 14px rgba(255,0,51,0.7)' }}
+        animate={{ width: [size * 0.18, size * 0.34, size * 0.18], height: [size * 0.18, size * 0.34, size * 0.18] }}
+        transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
+      />
+
+      {/* crosshair ticks */}
+      {[0, 90, 180, 270].map((deg) => (
+        <div
+          key={deg}
+          className="absolute h-2 w-px bg-crimson/50"
+          style={{ transform: `rotate(${deg}deg) translateY(-${size / 2 - 2}px)` }}
+        />
+      ))}
+    </div>
+  );
+}
+
+
+'use client'; import { useEffect, useState } from 'react';
+const LOG_TEMPLATES = [ 'CONNECTING TO NODE [{ip}]...', 'QUERY OPERATOR DATABASE :: HLR LOOKUP', 'RESOLVING CARRIER ID 0x{hex}', 'CROSS-REF SOCIAL GRAPH... {pct}%', 'DECRYPTING METADATA BLOCK #{n}', 'SCANNING BREACH ARCHIVES...', 'NO MATCH IN LOCAL CACHE — FALLBACK', 'VERIFYING SIGNAL TOWER TRIANGULATION', 'ASSEMBLING ENTITY PROFILE...', ];
+function randomLine() { const t = LOG_TEMPLATES[Math.floor(Math.random() * LOG_TEMPLATES.length)]; return t .replace('{ip}', 10.${rnd(255)}.${rnd(255)}.${rnd(255)}) .replace('{hex}', rnd(0xffff).toString(16).padStart(4, '0')) .replace('{pct}', String(rnd(100))) .replace('{n}', String(rnd(9999))); } function rnd(max) { return Math.floor(Math.random() * max); }
+/**
+    •  — auto-scrolling pseudo-log feed used alongside
+    • ScanningIris during the analysis wait state. */ export default function TerminalLog({ active = true, lineIntervalMs = 380, maxLines = 9, className = '' }) { const [lines, setLines] = useState([]);
+useEffect(() => { if (!active) return; const id = setInterval(() => { setLines((prev) => [...prev.slice(-(maxLines - 1)), randomLine()]); }, lineIntervalMs); return () => clearInterval(id); }, [active, lineIntervalMs, maxLines]);
+return (
+{lines.map((l, i) => ( 
+> {l} 
+))} 
+); } 
+
+
+'use client'; import { useState } from 'react'; import { motion, AnimatePresence } from 'framer-motion'; import { ChevronDown } from 'lucide-react';
+/**
+    • ...content...
+    • Data block that opens with a vertical shutter (clip-path) wipe rather than
+    • a plain height transition — reads as a HUD panel sliding open. */ export default function ShutterCard({ title, icon, defaultOpen = false, children }) { const [open, setOpen] = useState(defaultOpen);
+return (
+{icon} {title} 
+  <AnimatePresence initial={false}>
+    {open && (
+      <motion.div
+        key="content"
+        initial={{ clipPath: 'inset(0 0 100% 0)', opacity: 0 }}
+        animate={{ clipPath: 'inset(0 0 0% 0)', opacity: 1 }}
+        exit={{ clipPath: 'inset(0 0 100% 0)', opacity: 0 }}
+        transition={{ duration: 0.45, ease: [0.2, 0.9, 0.2, 1] }}
+        className="border-t border-white/10 px-5 py-4"
+      >
+        {children}
+      </motion.div>
+    )}
+  </AnimatePresence>
+</div>
+); }
+

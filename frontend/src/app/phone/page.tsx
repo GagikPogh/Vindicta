@@ -17,16 +17,18 @@ import {
   Users,
 } from "lucide-react";
 import { format, formatDistanceToNow } from "date-fns";
-import { ru } from "date-fns/locale";
+import { enUS } from "date-fns/locale";
 import { toast } from "sonner";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { PageHeader } from "@/components/layout/page-header";
+import { ScanningIris } from "@/components/phone/scanning-iris";
+import { ShutterCard } from "@/components/phone/shutter-card";
+import { TerminalLog } from "@/components/phone/terminal-log";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
@@ -54,12 +56,12 @@ const PLATFORM_META: Record<string, { icon: React.ElementType; color: string; la
 };
 
 const SOURCE_LABELS: Record<string, string> = {
-  internal: "Внутренняя БД",
-  imported: "Импорт контактов",
-  investigator: "Следователь",
-  osint_public: "Публичный OSINT",
-  carrier_api: "Оператор связи",
-  demo: "Демо-данные",
+  internal: "Internal DB",
+  imported: "Contact import",
+  investigator: "Analyst",
+  osint_public: "Public OSINT",
+  carrier_api: "Carrier API",
+  demo: "Demo data",
 };
 
 const DEMO_NUMBERS = ["+79001234567", "+14155550100"];
@@ -105,7 +107,7 @@ export default function PhoneLookupPage() {
       setPhone(q);
       loadHistory();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Ошибка поиска");
+      toast.error(error instanceof Error ? error.message : "Lookup failed");
     } finally {
       setLoading(false);
     }
@@ -129,8 +131,8 @@ export default function PhoneLookupPage() {
     <AppShell>
       <div className="space-y-6 max-w-5xl mx-auto">
         <PageHeader
-          title="Пробив по номеру"
-          description="Контактные метки, соцсети и оператор — из внутренней базы разведки и легальных источников"
+          title="Phone Intelligence"
+          description="Contact tags, social profiles, and carrier data from internal records and lawful OSINT sources"
         />
 
         <GlassCard strong glow className="p-4 sm:p-6">
@@ -146,12 +148,12 @@ export default function PhoneLookupPage() {
               />
             </div>
             <Button className="h-12 px-8" onClick={() => handleLookup()} disabled={loading}>
-              {loading ? "Поиск..." : "Пробить"}
+              {loading ? "Scanning..." : "Analyze"}
             </Button>
           </div>
 
           <div className="mt-4 flex flex-wrap items-center gap-2">
-            <span className="text-xs text-muted-foreground">Демо:</span>
+            <span className="text-xs text-muted-foreground">Demo:</span>
             {DEMO_NUMBERS.map((num) => (
               <button
                 key={num}
@@ -168,9 +170,16 @@ export default function PhoneLookupPage() {
           <div className="lg:col-span-2 space-y-4">
             <AnimatePresence mode="wait">
               {loading && (
-                <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-3">
-                  <Skeleton className="h-32 w-full rounded-2xl" />
-                  <Skeleton className="h-48 w-full rounded-2xl" />
+                <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                  <GlassCard className="p-8 flex flex-col items-center gap-6">
+                    <ScanningIris size={112} />
+                    <div className="w-full max-w-md">
+                      <p className="font-mono text-xs uppercase tracking-[0.2em] text-crimson text-center mb-3">
+                        Scanning number...
+                      </p>
+                      <TerminalLog active className="max-h-40" />
+                    </div>
+                  </GlassCard>
                 </motion.div>
               )}
 
@@ -181,7 +190,7 @@ export default function PhoneLookupPage() {
                   animate={{ opacity: 1, y: 0 }}
                   className="space-y-4"
                 >
-                  <GlassCard className="p-4 sm:p-5">
+                  <ShutterCard title="Number Profile" icon={<Phone className="h-4 w-4 text-crimson" />} defaultOpen>
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
                         <p className="text-2xl font-bold font-mono tracking-tight">{result.e164}</p>
@@ -201,8 +210,8 @@ export default function PhoneLookupPage() {
                       </div>
                       <div className="text-right text-xs text-muted-foreground">
                         <p>{result.took_ms}ms</p>
-                        {result.cached && <p>из кэша</p>}
-                        <p>{result.tag_count} меток · {result.profile_count} профилей</p>
+                        {result.cached && <p>cached</p>}
+                        <p>{result.tag_count} tags · {result.profile_count} profiles</p>
                       </div>
                     </div>
 
@@ -216,24 +225,24 @@ export default function PhoneLookupPage() {
                         ))}
                       </div>
                     )}
-                  </GlassCard>
+                  </ShutterCard>
 
                   <Tabs defaultValue="tags">
                     <TabsList className="glass w-full sm:w-auto">
                       <TabsTrigger value="tags">
                         <Tag className="h-4 w-4 sm:mr-1.5" />
-                        <span className="hidden sm:inline">Как записали</span>
-                        <span className="sm:hidden">Метки</span>
+                        <span className="hidden sm:inline">Contact Tags</span>
+                        <span className="sm:hidden">Tags</span>
                         <Badge className="ml-1.5 text-[10px]" variant="secondary">{result.tag_count}</Badge>
                       </TabsTrigger>
                       <TabsTrigger value="social">
                         <Users className="h-4 w-4 sm:mr-1.5" />
-                        <span className="hidden sm:inline">Соцсети</span>
+                        <span className="hidden sm:inline">Social Profiles</span>
                         <Badge className="ml-1.5 text-[10px]" variant="secondary">{result.profile_count}</Badge>
                       </TabsTrigger>
                       <TabsTrigger value="links">
                         <ExternalLink className="h-4 w-4 sm:mr-1.5" />
-                        <span className="hidden sm:inline">Ссылки</span>
+                        <span className="hidden sm:inline">Search Links</span>
                       </TabsTrigger>
                     </TabsList>
 
@@ -244,25 +253,25 @@ export default function PhoneLookupPage() {
                             render={
                               <Button size="sm" variant="outline">
                                 <Plus className="h-4 w-4" />
-                                Добавить метку
+                                Add tag
                               </Button>
                             }
                           />
                           <DialogContent className="glass-strong border-glass-border">
                             <DialogHeader>
-                              <DialogTitle>Новая контактная метка</DialogTitle>
+                              <DialogTitle>New contact tag</DialogTitle>
                             </DialogHeader>
                             <form onSubmit={handleAddTag} className="space-y-4 mt-2">
                               <div className="space-y-2">
-                                <Label>Как записан в контактах</Label>
+                                <Label>Contact name</Label>
                                 <Input
                                   value={newTag}
                                   onChange={(e) => setNewTag(e.target.value)}
-                                  placeholder="Имя в телефонной книге"
+                                  placeholder="Name in address book"
                                   required
                                 />
                               </div>
-                              <Button type="submit" className="w-full">Сохранить</Button>
+                              <Button type="submit" className="w-full">Save</Button>
                             </form>
                           </DialogContent>
                         </Dialog>
@@ -270,7 +279,7 @@ export default function PhoneLookupPage() {
 
                       {result.contact_tags.length === 0 ? (
                         <GlassCard className="p-8 text-center text-sm text-muted-foreground">
-                          Контактные метки не найдены в базе
+                          No contact tags found in database
                         </GlassCard>
                       ) : (
                         result.contact_tags.map((tag, i) => (
@@ -295,10 +304,10 @@ export default function PhoneLookupPage() {
                               <div className="text-right shrink-0">
                                 <p className="text-xs text-muted-foreground flex items-center gap-1 justify-end">
                                   <Clock className="h-3 w-3" />
-                                  {format(new Date(tag.recorded_at), "d MMM yyyy", { locale: ru })}
+                                  {format(new Date(tag.recorded_at), "d MMM yyyy", { locale: enUS })}
                                 </p>
                                 <p className="text-[10px] text-muted-foreground mt-0.5">
-                                  {Math.round(tag.confidence * 100)}% достоверность
+                                  {Math.round(tag.confidence * 100)}% confidence
                                 </p>
                               </div>
                             </GlassCard>
@@ -310,7 +319,7 @@ export default function PhoneLookupPage() {
                     <TabsContent value="social" className="mt-4 space-y-2">
                       {result.social_profiles.length === 0 ? (
                         <GlassCard className="p-8 text-center text-sm text-muted-foreground">
-                          Профили в соцсетях не найдены
+                          No social profiles found
                         </GlassCard>
                       ) : (
                         result.social_profiles.map((profile, i) => {
@@ -348,14 +357,14 @@ export default function PhoneLookupPage() {
                                     onClick={() => openUrl(profile.profile_url)}
                                   >
                                     <ExternalLink className="h-4 w-4" />
-                                    Открыть
+                                    Open
                                   </Button>
                                 </div>
                                 <div className="flex flex-wrap gap-2 mt-3 text-[10px] text-muted-foreground">
                                   <Badge variant="outline" className="text-[10px]">
                                     {SOURCE_LABELS[profile.source] || profile.source}
                                   </Badge>
-                                  <span>Найден {format(new Date(profile.discovered_at), "d MMM yyyy", { locale: ru })}</span>
+                                  <span>Found {format(new Date(profile.discovered_at), "d MMM yyyy", { locale: enUS })}</span>
                                   <span>{Math.round(profile.confidence * 100)}%</span>
                                 </div>
                               </GlassCard>
@@ -397,8 +406,8 @@ export default function PhoneLookupPage() {
                   <Shield className="h-12 w-12 text-primary mx-auto mb-4 opacity-60" />
                   <h3 className="font-semibold mb-2">Phone Intelligence</h3>
                   <p className="text-sm text-muted-foreground max-w-md mx-auto">
-                    Введите номер телефона для поиска контактных меток, привязанных соцсетей
-                    и данных оператора из внутренней базы и легальных источников OSINT.
+                    Enter a phone number to search contact tags, linked social profiles,
+                    and carrier data from internal records and lawful OSINT sources.
                   </p>
                 </GlassCard>
               )}
@@ -409,10 +418,10 @@ export default function PhoneLookupPage() {
             <GlassCard className="p-4 sm:p-5">
               <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
                 <Clock className="h-4 w-4 text-muted-foreground" />
-                История пробивов
+                Lookup History
               </h3>
               {history.length === 0 ? (
-                <p className="text-xs text-muted-foreground">Пока пусто</p>
+                <p className="text-xs text-muted-foreground">No history yet</p>
               ) : (
                 <div className="space-y-2">
                   {history.map((item) => (
@@ -423,8 +432,8 @@ export default function PhoneLookupPage() {
                     >
                       <p className="font-mono text-sm font-medium">{item.e164}</p>
                       <p className="text-[10px] text-muted-foreground mt-0.5">
-                        {item.tag_count} меток · {item.profile_count} профилей ·{" "}
-                        {formatDistanceToNow(new Date(item.created_at), { addSuffix: true, locale: ru })}
+                        {item.tag_count} tags · {item.profile_count} profiles ·{" "}
+                        {formatDistanceToNow(new Date(item.created_at), { addSuffix: true, locale: enUS })}
                       </p>
                     </button>
                   ))}
@@ -433,17 +442,17 @@ export default function PhoneLookupPage() {
             </GlassCard>
 
             <GlassCard className="p-4 sm:p-5">
-              <h3 className="text-sm font-semibold mb-2">Источники данных</h3>
+              <h3 className="text-sm font-semibold mb-2">Data Sources</h3>
               <ul className="text-xs text-muted-foreground space-y-1.5">
-                <li>• Внутренняя база разведки</li>
-                <li>• Импорт контактных листов</li>
-                <li>• Публичный OSINT</li>
-                <li>• API оператора (Numverify)</li>
-                <li>• Прямые ссылки для проверки</li>
+                <li>• Internal intelligence database</li>
+                <li>• Contact list imports</li>
+                <li>• Public OSINT</li>
+                <li>• Carrier API (Numverify)</li>
+                <li>• Direct verification links</li>
               </ul>
               <p className="text-[10px] text-muted-foreground mt-3 border-t border-glass-border pt-3">
-                Данные собираются только из легальных источников и собственных расследований.
-                Подключение сторонних утечек (GetContact и аналоги) не поддерживается.
+                Data is collected only from lawful sources and proprietary investigations.
+                Third-party breach databases are not supported.
               </p>
             </GlassCard>
           </div>

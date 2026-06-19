@@ -26,12 +26,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { WebToolbar } from "@/components/web/web-toolbar";
+import { GraphHUD } from "@/components/web/graph-hud";
 import {
   detectWebLocale,
   getWebMessages,
   nodeTypeLabel,
   WEB_NODE_TYPES,
 } from "@/lib/i18n/web";
+import { paintLink, paintNode, useNodeRipples } from "@/lib/graph-paint";
 import { NODE_TYPE_CONFIG, useWebStore } from "@/stores/web-store";
 
 const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), { ssr: false });
@@ -39,9 +41,11 @@ const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), { ssr: false 
 interface ForceNode {
   id: string;
   name: string;
+  label: string;
   type: string;
   color: string;
   val: number;
+  weight: number;
   fx?: number;
   fy?: number;
   emoji: string;
@@ -80,10 +84,18 @@ export function DetectiveCanvas() {
   } = useWebStore();
 
   const [search, setSearch] = useState("");
+  const [, setAnimTick] = useState(0);
+  const { ripples, addRipple } = useNodeRipples();
 
   useEffect(() => {
-    loadWeb();
-  }, [loadWeb]);
+    let frameId = 0;
+    const loop = () => {
+      setAnimTick((t) => t + 1);
+      frameId = requestAnimationFrame(loop);
+    };
+    frameId = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(frameId);
+  }, []);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -101,6 +113,10 @@ export function DetectiveCanvas() {
     observer.observe(el);
     return () => observer.disconnect();
   }, [isLoading, loadError]);
+
+  useEffect(() => {
+    loadWeb();
+  }, [loadWeb]);
 
   useEffect(() => {
     const interval = setInterval(() => pullSync(), 15000);
@@ -134,9 +150,11 @@ export function DetectiveCanvas() {
         return {
           id: n.id,
           name: n.label,
+          label: n.label,
           type: n.node_type,
           color: dimmed ? "#334155" : (n.color || config.color),
           val: n.node_type === "organization" ? 10 : 7,
+          weight: n.node_type === "organization" ? 10 : 7,
           fx: n.is_pinned ? n.x : undefined,
           fy: n.is_pinned ? n.y : undefined,
           emoji: config.emoji,
@@ -158,7 +176,8 @@ export function DetectiveCanvas() {
   );
 
   const handleNodeClick = useCallback(
-    (node: { id: string }) => {
+    (node: { id: string; x?: number; y?: number }) => {
+      addRipple(node as ForceNode & { x: number; y: number });
       if (linkSourceId) {
         if (linkSourceId !== node.id) {
           addEdge(linkSourceId, node.id, t.edgeTypes.related_to, "related_to");
@@ -169,7 +188,7 @@ export function DetectiveCanvas() {
         setSelectedNode(node.id);
       }
     },
-    [linkSourceId, addEdge, setLinkSource, setSelectedNode, t]
+    [linkSourceId, addEdge, setLinkSource, setSelectedNode, t, addRipple]
   );
 
   const handleDragStart = useCallback(() => {
@@ -235,40 +254,11 @@ export function DetectiveCanvas() {
 
   return (
     <div className="relative h-[calc(100dvh-8rem)] lg:h-[calc(100dvh-6rem)]">
-      <div className="absolute inset-0 overflow-hidden rounded-2xl pointer-events-none opacity-30">
-        <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <radialGradient id="webGlow" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stopColor="oklch(0.72 0.19 265 / 40%)" />
-              <stop offset="100%" stopColor="transparent" />
-            </radialGradient>
-          </defs>
-          <circle cx="50%" cy="50%" r="40%" fill="url(#webGlow)" />
-          {Array.from({ length: 12 }).map((_, i) => {
-            const angle = (i / 12) * Math.PI * 2;
-            const x2 = 50 + Math.cos(angle) * 45;
-            const y2 = 50 + Math.sin(angle) * 45;
-            return (
-              <line
-                key={`spoke-${i}`}
-                x1="50%" y1="50%"
-                x2={`${x2}%`} y2={`${y2}%`}
-                stroke="oklch(0.72 0.19 265 / 20%)"
-                strokeWidth="0.5"
-              />
-            );
-          })}
-          {[15, 30, 45].map((r) => (
-            <circle
-              key={r}
-              cx="50%" cy="50%" r={`${r}%`}
-              fill="none"
-              stroke="oklch(0.72 0.19 265 / 15%)"
-              strokeWidth="0.5"
-            />
-          ))}
-        </svg>
-      </div>
+      <GraphHUD
+        nodeCount={nodes.length}
+        edgeCount={edges.length}
+        label={locale === "ru" ? "АНАЛИЗ СВЯЗЕЙ" : "LINK ANALYSIS"}
+      />
 
       <GlassCard className="absolute top-3 left-3 right-3 z-20 p-2 sm:p-3 flex flex-wrap items-center gap-2">
         <WebToolbar locale={locale} />
@@ -300,14 +290,11 @@ export function DetectiveCanvas() {
             graphData={forceData}
             nodeLabel={(n) => `${(n as ForceNode).emoji} ${(n as ForceNode).name}`}
             linkLabel="label"
-            linkColor={() => "oklch(0.72 0.19 265 / 35%)"}
-            linkWidth={1.5}
-            linkDirectionalParticles={2}
-            linkDirectionalParticleWidth={2}
-            linkDirectionalParticleColor={() => "oklch(0.72 0.19 265)"}
+            linkColor={() => "transparent"}
+            linkWidth={0}
             backgroundColor="transparent"
             enableNodeDrag
-            onNodeClick={(node) => handleNodeClick(node as { id: string })}
+            onNodeClick={(node) => handleNodeClick(node as { id: string; x?: number; y?: number })}
             onNodeDrag={(node) => {
               handleDragStart();
               const n = node as { id: string; fx?: number; fy?: number; x?: number; y?: number };
@@ -321,40 +308,15 @@ export function DetectiveCanvas() {
             }}
             cooldownTicks={80}
             d3AlphaDecay={0.02}
+            linkCanvasObjectMode={() => "replace"}
+            linkCanvasObject={(link, ctx) => paintLink(link as { source: ForceNode & { x: number; y: number }; target: ForceNode & { x: number; y: number } }, ctx)}
+            nodeCanvasObjectMode={() => "replace"}
             nodeCanvasObject={(node, ctx, globalScale) => {
               const n = node as ForceNode & { x: number; y: number };
-              const isSelected = n.id === selectedNodeId;
-              const isLinkSource = n.id === linkSourceId;
-              const size = n.val;
-
-              if (isSelected || isLinkSource) {
-                ctx.beginPath();
-                ctx.arc(n.x, n.y, size + 6, 0, 2 * Math.PI);
-                ctx.fillStyle = isLinkSource ? "oklch(0.72 0.19 265 / 30%)" : "oklch(0.72 0.19 265 / 25%)";
-                ctx.fill();
-                ctx.strokeStyle = "oklch(0.72 0.19 265 / 60%)";
-                ctx.lineWidth = 2 / globalScale;
-                ctx.stroke();
-              }
-
-              ctx.beginPath();
-              ctx.arc(n.x, n.y, size, 0, 2 * Math.PI);
-              ctx.fillStyle = n.color;
-              ctx.shadowColor = n.color;
-              ctx.shadowBlur = isSelected ? 20 : 8;
-              ctx.fill();
-              ctx.shadowBlur = 0;
-
-              if (globalScale > 0.5) {
-                ctx.font = `${Math.max(10, 14 / globalScale)}px Sans-Serif`;
-                ctx.textAlign = "center";
-                ctx.textBaseline = "middle";
-                ctx.fillStyle = "oklch(0.98 0.005 265)";
-                ctx.fillText(n.emoji, n.x, n.y);
-
-                ctx.font = `${Math.max(8, 11 / globalScale)}px Sans-Serif`;
-                ctx.fillText(n.name, n.x, n.y + size + 12 / globalScale);
-              }
+              paintNode(n, ctx, globalScale, ripples, {
+                selected: n.id === selectedNodeId,
+                linkSource: n.id === linkSourceId,
+              });
             }}
           />
         )}
