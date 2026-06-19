@@ -22,23 +22,18 @@ if [[ ! -f .env ]]; then
 fi
 
 log "Запуск PostgreSQL, Neo4j, Redis, Backend..."
-docker compose up -d postgres neo4j redis
-
-log "Ожидание готовности сервисов..."
-for i in {1..30}; do
-  if docker compose exec -T postgres pg_isready -U vindicta >/dev/null 2>&1; then
-    break
-  fi
-  sleep 2
-done
-
-if docker compose ps backend 2>/dev/null | grep -q "Up"; then
-  docker compose up -d backend
+if docker compose version >/dev/null 2>&1; then
+  COMPOSE="docker compose"
+elif command -v docker-compose >/dev/null 2>&1; then
+  COMPOSE="docker-compose"
 else
-  log "Запуск backend..."
-  docker compose up -d backend 2>/dev/null || {
-    log "Backend через Docker недоступен — запустите вручную: cd backend && uvicorn app.main:app --reload"
-  }
+  log "Docker Compose не найден — пропускаю backend-сервисы."
+  log "Установите docker-compose или запустите backend вручную."
+  COMPOSE=""
+fi
+
+if [[ -n "$COMPOSE" ]]; then
+  $COMPOSE up -d postgres neo4j redis backend 2>/dev/null || $COMPOSE up -d 2>/dev/null || log "Docker compose failed — continuing with frontend only."
 fi
 
 log "Запуск frontend на http://localhost:3000 ..."
