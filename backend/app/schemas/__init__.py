@@ -375,7 +375,7 @@ class WebSyncResponse(BaseModel):
 
 
 class CreateWebRequest(BaseModel):
-    title: str = Field(default="Новая паутина", min_length=1, max_length=255)
+    title: str = Field(default="New graph", min_length=1, max_length=255)
     description: Optional[str] = None
 
 

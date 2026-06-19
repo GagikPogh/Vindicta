@@ -76,6 +76,9 @@ async function request<T>(
   }
 
   if (!response.ok) {
+    if (response.status === 304) {
+      throw new ApiError("Not modified", 304);
+    }
     const error = await response.json().catch(() => ({ detail: "Request failed" }));
     throw new ApiError(
       typeof error.detail === "string" ? error.detail : JSON.stringify(error.detail),

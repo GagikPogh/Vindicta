@@ -26,6 +26,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { WebToolbar } from "@/components/web/web-toolbar";
+import {
+  detectWebLocale,
+  getWebMessages,
+  nodeTypeLabel,
+  WEB_NODE_TYPES,
+} from "@/lib/i18n/web";
 import { NODE_TYPE_CONFIG, useWebStore } from "@/stores/web-store";
 
 const ForceGraph2D = dynamic(() => import("react-force-graph-2d"), { ssr: false });
@@ -42,22 +48,30 @@ interface ForceNode {
 }
 
 export function DetectiveCanvas() {
+  const containerRef = useRef<HTMLDivElement>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dragEndTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
+  const [locale] = useState(detectWebLocale);
+  const t = useMemo(() => getWebMessages(locale), [locale]);
 
   const {
     web,
     nodes,
     edges,
     isLoading,
+    loadError,
     selectedNodeId,
     linkSourceId,
     syncStatus,
     dirty,
+    isDragging,
     loadWeb,
     pullSync,
     pushSync,
     setSelectedNode,
     setLinkSource,
+    setDragging,
     addEdge,
     updateNode,
     deleteNode,
@@ -72,6 +86,23 @@ export function DetectiveCanvas() {
   }, [loadWeb]);
 
   useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const updateSize = () => {
+      const rect = el.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        setDimensions({ width: rect.width, height: rect.height });
+      }
+    };
+
+    updateSize();
+    const observer = new ResizeObserver(updateSize);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [isLoading, loadError]);
+
+  useEffect(() => {
     const interval = setInterval(() => pullSync(), 15000);
     const onFocus = () => pullSync();
     window.addEventListener("focus", onFocus);
@@ -82,13 +113,13 @@ export function DetectiveCanvas() {
   }, [pullSync]);
 
   useEffect(() => {
-    if (!dirty) return;
+    if (!dirty || isDragging) return;
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(() => pushSync(), 2000);
     return () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
     };
-  }, [dirty, nodes, edges, pushSync]);
+  }, [dirty, nodes, edges, pushSync, isDragging]);
 
   const forceData = useMemo(() => {
     const filtered = search
@@ -105,7 +136,7 @@ export function DetectiveCanvas() {
           name: n.label,
           type: n.node_type,
           color: dimmed ? "#334155" : (n.color || config.color),
-          val: n.node_type === "suspect" ? 12 : n.node_type === "organization" ? 10 : 7,
+          val: n.node_type === "organization" ? 10 : 7,
           fx: n.is_pinned ? n.x : undefined,
           fy: n.is_pinned ? n.y : undefined,
           emoji: config.emoji,
@@ -130,15 +161,31 @@ export function DetectiveCanvas() {
     (node: { id: string }) => {
       if (linkSourceId) {
         if (linkSourceId !== node.id) {
-          addEdge(linkSourceId, node.id);
-          toast.success("Связь создана");
+          addEdge(linkSourceId, node.id, t.edgeTypes.related_to, "related_to");
+          toast.success(t.linkCreated);
         }
         setLinkSource(null);
       } else {
         setSelectedNode(node.id);
       }
     },
-    [linkSourceId, addEdge, setLinkSource, setSelectedNode]
+    [linkSourceId, addEdge, setLinkSource, setSelectedNode, t]
+  );
+
+  const handleDragStart = useCallback(() => {
+    if (dragEndTimerRef.current) clearTimeout(dragEndTimerRef.current);
+    setDragging(true);
+  }, [setDragging]);
+
+  const handleDragEnd = useCallback(
+    (node: { id: string; x?: number; y?: number }) => {
+      updateNodePosition(node.id, node.x ?? 0, node.y ?? 0);
+      setDragging(false);
+      dragEndTimerRef.current = setTimeout(() => {
+        useWebStore.setState({ pullPaused: false });
+      }, 3000);
+    },
+    [updateNodePosition, setDragging]
   );
 
   const syncIcon = () => {
@@ -158,12 +205,12 @@ export function DetectiveCanvas() {
 
   const syncLabel = () => {
     switch (syncStatus) {
-      case "saving": return "Сохранение...";
-      case "syncing": return "Синхронизация...";
-      case "saved": return "Синхронизировано";
-      case "conflict": return "Конфликт — обновлено с сервера";
-      case "error": return "Ошибка синхронизации";
-      default: return dirty ? "Есть изменения" : "Все устройства";
+      case "saving": return t.syncSaving;
+      case "syncing": return t.syncSyncing;
+      case "saved": return t.syncSaved;
+      case "conflict": return t.syncConflict;
+      case "error": return t.syncError;
+      default: return dirty ? t.syncDirty : t.syncIdle;
     }
   };
 
@@ -175,9 +222,19 @@ export function DetectiveCanvas() {
     );
   }
 
+  if (loadError) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 h-[70vh]">
+        <CloudOff className="h-10 w-10 text-destructive" />
+        <p className="text-sm text-muted-foreground">{t.loadError}</p>
+        <p className="text-xs text-muted-foreground/70 max-w-sm text-center">{loadError}</p>
+        <Button onClick={() => loadWeb()}>{t.retry}</Button>
+      </div>
+    );
+  }
+
   return (
     <div className="relative h-[calc(100dvh-8rem)] lg:h-[calc(100dvh-6rem)]">
-      {/* Spider web background */}
       <div className="absolute inset-0 overflow-hidden rounded-2xl pointer-events-none opacity-30">
         <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
           <defs>
@@ -214,10 +271,10 @@ export function DetectiveCanvas() {
       </div>
 
       <GlassCard className="absolute top-3 left-3 right-3 z-20 p-2 sm:p-3 flex flex-wrap items-center gap-2">
-        <WebToolbar />
+        <WebToolbar locale={locale} />
         <div className="flex-1 min-w-[120px]">
           <Input
-            placeholder="Поиск узла..."
+            placeholder={t.searchPlaceholder}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="h-8 text-sm"
@@ -230,69 +287,77 @@ export function DetectiveCanvas() {
         {linkSourceId && (
           <Badge className="gap-1 bg-primary/20 text-primary animate-pulse">
             <Link2 className="h-3 w-3" />
-            Выберите цель связи
+            {t.linkTarget}
           </Badge>
         )}
       </GlassCard>
 
-      <div className="absolute inset-0 rounded-2xl overflow-hidden">
-        <ForceGraph2D
-          graphData={forceData}
-          nodeLabel={(n) => `${(n as ForceNode).emoji} ${(n as ForceNode).name}`}
-          linkLabel="label"
-          linkColor={() => "oklch(0.72 0.19 265 / 35%)"}
-          linkWidth={(l) => ((l as { type?: string }).type === "suspected" ? 2.5 : 1.5)}
-          linkDirectionalParticles={2}
-          linkDirectionalParticleWidth={2}
-          linkDirectionalParticleColor={() => "oklch(0.72 0.19 265)"}
-          backgroundColor="transparent"
-          enableNodeDrag
-          onNodeClick={(node) => handleNodeClick(node as { id: string })}
-          onNodeDragEnd={(node) => {
-            updateNodePosition((node as { id: string }).id, node.x ?? 0, node.y ?? 0);
-          }}
-          onBackgroundClick={() => {
-            setSelectedNode(null);
-            setLinkSource(null);
-          }}
-          cooldownTicks={80}
-          d3AlphaDecay={0.02}
-          nodeCanvasObject={(node, ctx, globalScale) => {
-            const n = node as ForceNode & { x: number; y: number };
-            const isSelected = n.id === selectedNodeId;
-            const isLinkSource = n.id === linkSourceId;
-            const size = n.val;
+      <div ref={containerRef} className="absolute inset-0 rounded-2xl overflow-hidden">
+        {dimensions.width > 0 && dimensions.height > 0 && (
+          <ForceGraph2D
+            width={dimensions.width}
+            height={dimensions.height}
+            graphData={forceData}
+            nodeLabel={(n) => `${(n as ForceNode).emoji} ${(n as ForceNode).name}`}
+            linkLabel="label"
+            linkColor={() => "oklch(0.72 0.19 265 / 35%)"}
+            linkWidth={1.5}
+            linkDirectionalParticles={2}
+            linkDirectionalParticleWidth={2}
+            linkDirectionalParticleColor={() => "oklch(0.72 0.19 265)"}
+            backgroundColor="transparent"
+            enableNodeDrag
+            onNodeClick={(node) => handleNodeClick(node as { id: string })}
+            onNodeDrag={(node) => {
+              handleDragStart();
+              const n = node as { id: string; fx?: number; fy?: number; x?: number; y?: number };
+              n.fx = n.x;
+              n.fy = n.y;
+            }}
+            onNodeDragEnd={(node) => handleDragEnd(node as { id: string; x?: number; y?: number })}
+            onBackgroundClick={() => {
+              setSelectedNode(null);
+              setLinkSource(null);
+            }}
+            cooldownTicks={80}
+            d3AlphaDecay={0.02}
+            nodeCanvasObject={(node, ctx, globalScale) => {
+              const n = node as ForceNode & { x: number; y: number };
+              const isSelected = n.id === selectedNodeId;
+              const isLinkSource = n.id === linkSourceId;
+              const size = n.val;
 
-            if (isSelected || isLinkSource) {
+              if (isSelected || isLinkSource) {
+                ctx.beginPath();
+                ctx.arc(n.x, n.y, size + 6, 0, 2 * Math.PI);
+                ctx.fillStyle = isLinkSource ? "oklch(0.72 0.19 265 / 30%)" : "oklch(0.72 0.19 265 / 25%)";
+                ctx.fill();
+                ctx.strokeStyle = "oklch(0.72 0.19 265 / 60%)";
+                ctx.lineWidth = 2 / globalScale;
+                ctx.stroke();
+              }
+
               ctx.beginPath();
-              ctx.arc(n.x, n.y, size + 6, 0, 2 * Math.PI);
-              ctx.fillStyle = isLinkSource ? "oklch(0.72 0.19 265 / 30%)" : "oklch(0.72 0.19 265 / 25%)";
+              ctx.arc(n.x, n.y, size, 0, 2 * Math.PI);
+              ctx.fillStyle = n.color;
+              ctx.shadowColor = n.color;
+              ctx.shadowBlur = isSelected ? 20 : 8;
               ctx.fill();
-              ctx.strokeStyle = "oklch(0.72 0.19 265 / 60%)";
-              ctx.lineWidth = 2 / globalScale;
-              ctx.stroke();
-            }
+              ctx.shadowBlur = 0;
 
-            ctx.beginPath();
-            ctx.arc(n.x, n.y, size, 0, 2 * Math.PI);
-            ctx.fillStyle = n.color;
-            ctx.shadowColor = n.color;
-            ctx.shadowBlur = isSelected ? 20 : 8;
-            ctx.fill();
-            ctx.shadowBlur = 0;
+              if (globalScale > 0.5) {
+                ctx.font = `${Math.max(10, 14 / globalScale)}px Sans-Serif`;
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillStyle = "oklch(0.98 0.005 265)";
+                ctx.fillText(n.emoji, n.x, n.y);
 
-            if (globalScale > 0.5) {
-              ctx.font = `${Math.max(10, 14 / globalScale)}px Sans-Serif`;
-              ctx.textAlign = "center";
-              ctx.textBaseline = "middle";
-              ctx.fillStyle = "oklch(0.98 0.005 265)";
-              ctx.fillText(n.emoji, n.x, n.y);
-
-              ctx.font = `${Math.max(8, 11 / globalScale)}px Sans-Serif`;
-              ctx.fillText(n.name, n.x, n.y + size + 12 / globalScale);
-            }
-          }}
-        />
+                ctx.font = `${Math.max(8, 11 / globalScale)}px Sans-Serif`;
+                ctx.fillText(n.name, n.x, n.y + size + 12 / globalScale);
+              }
+            }}
+          />
+        )}
       </div>
 
       <AnimatePresence>
@@ -308,7 +373,7 @@ export function DetectiveCanvas() {
                 <div>
                   <span className="text-2xl">{NODE_TYPE_CONFIG[selectedNode.node_type]?.emoji}</span>
                   <Badge className="ml-2 text-[10px] capitalize">
-                    {NODE_TYPE_CONFIG[selectedNode.node_type]?.label}
+                    {nodeTypeLabel(selectedNode.node_type, t)}
                   </Badge>
                 </div>
                 <Button variant="ghost" size="icon-sm" onClick={() => deleteNode(selectedNode.id)}>
@@ -318,26 +383,26 @@ export function DetectiveCanvas() {
 
               <div className="space-y-3 flex-1">
                 <div className="space-y-1.5">
-                  <Label>Имя / название</Label>
+                  <Label>{t.nameLabel}</Label>
                   <Input
                     value={selectedNode.label}
                     onChange={(e) => updateNode(selectedNode.id, { label: e.target.value })}
-                    onBlur={() => pushSync()}
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Описание</Label>
+                  <Label>{t.description}</Label>
                   <Textarea
                     value={selectedNode.description || ""}
                     onChange={(e) => updateNode(selectedNode.id, { description: e.target.value })}
-                    onBlur={() => pushSync()}
                     rows={3}
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Тип</Label>
+                  <Label>{t.type}</Label>
                   <Select
-                    value={selectedNode.node_type}
+                    value={WEB_NODE_TYPES.includes(selectedNode.node_type as (typeof WEB_NODE_TYPES)[number])
+                      ? selectedNode.node_type
+                      : "person"}
                     onValueChange={(v) => v && updateNode(selectedNode.id, {
                       node_type: v,
                       color: NODE_TYPE_CONFIG[v]?.color,
@@ -345,8 +410,10 @@ export function DetectiveCanvas() {
                   >
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {Object.entries(NODE_TYPE_CONFIG).map(([key, cfg]) => (
-                        <SelectItem key={key} value={key}>{cfg.emoji} {cfg.label}</SelectItem>
+                      {WEB_NODE_TYPES.map((key) => (
+                        <SelectItem key={key} value={key}>
+                          {NODE_TYPE_CONFIG[key].emoji} {t.nodeTypes[key]}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -358,12 +425,14 @@ export function DetectiveCanvas() {
                   onClick={() => setLinkSource(linkSourceId === selectedNode.id ? null : selectedNode.id)}
                 >
                   <Link2 className="h-4 w-4" />
-                  {linkSourceId === selectedNode.id ? "Отмена связи" : "Создать связь"}
+                  {linkSourceId === selectedNode.id ? t.cancelLink : t.createLink}
                 </Button>
 
                 {connectedEdges.length > 0 && (
                   <div className="pt-3 border-t border-glass-border space-y-2">
-                    <p className="text-xs font-medium text-muted-foreground">Связи ({connectedEdges.length})</p>
+                    <p className="text-xs font-medium text-muted-foreground">
+                      {t.connections} ({connectedEdges.length})
+                    </p>
                     {connectedEdges.map((edge) => {
                       const otherId = edge.source_id === selectedNode.id ? edge.target_id : edge.source_id;
                       const other = nodes.find((n) => n.id === otherId);
@@ -388,7 +457,7 @@ export function DetectiveCanvas() {
 
       <div className="absolute bottom-3 left-3 z-20 flex gap-2">
         <GlassCard className="px-3 py-2 text-xs text-muted-foreground">
-          {nodes.length} узлов · {edges.length} связей
+          {t.nodesCount(nodes.length, edges.length)}
           {web && <span className="ml-2 opacity-60">rev.{web.revision}</span>}
         </GlassCard>
       </div>

@@ -15,13 +15,14 @@ import {
   FolderSearch,
 } from "lucide-react";
 
+import { detectWebLocale, getWebMessages } from "@/lib/i18n/web";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/search", label: "Search", icon: Search },
   { href: "/phone", label: "Phone Intel", icon: Phone },
-  { href: "/web", label: "Паутина", icon: Network },
+  { href: "/web", labelKey: "nav" as const, icon: Network },
   { href: "/investigations", label: "Investigations", icon: FolderSearch },
   { href: "/graph", label: "Graph", icon: GitBranch },
   { href: "/timeline", label: "Timeline", icon: Clock },
@@ -31,6 +32,7 @@ const navItems = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const webNavLabel = getWebMessages(detectWebLocale()).nav;
 
   return (
     <aside className="hidden lg:flex lg:w-64 lg:flex-col lg:fixed lg:inset-y-0 lg:z-40">
@@ -49,6 +51,7 @@ export function Sidebar() {
           {navItems.map((item) => {
             const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
             const Icon = item.icon;
+            const label = "labelKey" in item && item.labelKey === "nav" ? webNavLabel : item.label;
             return (
               <Link
                 key={item.href}
@@ -61,7 +64,7 @@ export function Sidebar() {
                 )}
               >
                 <Icon className="h-4 w-4" />
-                {item.label}
+                {label}
               </Link>
             );
           })}

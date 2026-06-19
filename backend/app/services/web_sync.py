@@ -35,7 +35,7 @@ class WebSyncService:
         if web:
             return web
 
-        web = InvestigationWeb(user_id=user_id, title="Моя паутина", is_default=True)
+        web = InvestigationWeb(user_id=user_id, title="My graph", is_default=True)
         db.add(web)
         await db.flush()
         await WebSyncService.seed_demo_web(db, web)
@@ -44,14 +44,14 @@ class WebSyncService:
     @staticmethod
     async def seed_demo_web(db: AsyncSession, web: InvestigationWeb) -> None:
         nodes_data = [
-            (WebNodeType.SUSPECT, "Подозреваемый", "Главная цель расследования", 0, 0, "#ef4444"),
-            (WebNodeType.PERSON, "Иван Петров", "Свидетель", -120, -80, "#8b7cf6"),
-            (WebNodeType.FRIEND, "Мария К.", "Подруга свидетеля", -200, 40, "#a78bfa"),
-            (WebNodeType.EVENT, "Встреча 15.03", "Кафе на Тверской", 120, -60, "#f472b6"),
-            (WebNodeType.PHONE, "+79001234567", "Рабочий номер", 180, 60, "#34d399"),
-            (WebNodeType.LOCATION, "Москва, Тверская", "Место события", 60, 120, "#38bdf8"),
-            (WebNodeType.EVIDENCE, "Запись CCTV", "Камера #4, 15.03 19:42", -60, 140, "#fb923c"),
-            (WebNodeType.NOTE, "Гипотеза", "Связь через общего знакомого", 0, -160, "#c084fc"),
+            (WebNodeType.ORGANIZATION, "Acme Corp", "Primary organization", 0, 0, "#fbbf24"),
+            (WebNodeType.PERSON, "John Smith", "Key contact", -120, -80, "#8b7cf6"),
+            (WebNodeType.PERSON, "Maria K.", "Associate", -200, 40, "#8b7cf6"),
+            (WebNodeType.EVENT, "Meeting Mar 15", "Downtown office", 120, -60, "#f472b6"),
+            (WebNodeType.PHONE, "+12025550100", "Work number", 180, 60, "#34d399"),
+            (WebNodeType.LOCATION, "New York, 5th Ave", "Event location", 60, 120, "#38bdf8"),
+            (WebNodeType.EVIDENCE, "CCTV recording", "Camera #4, Mar 15 19:42", -60, 140, "#fb923c"),
+            (WebNodeType.NOTE, "Hypothesis", "Connection via mutual contact", 0, -160, "#c084fc"),
         ]
 
         nodes: list[WebNode] = []
@@ -71,14 +71,14 @@ class WebSyncService:
         await db.flush()
 
         edges_data = [
-            (0, 1, "знает", WebEdgeType.KNOWS),
-            (1, 2, "друг", WebEdgeType.FRIEND_OF),
-            (0, 3, "присутствовал", WebEdgeType.ATTENDED),
-            (0, 4, "звонил", WebEdgeType.CALLED),
-            (3, 5, "произошло в", WebEdgeType.LOCATED_AT),
-            (3, 6, "зафиксировано", WebEdgeType.WITNESSED),
-            (1, 7, "подтверждает", WebEdgeType.RELATED_TO),
-            (2, 0, "подозревает", WebEdgeType.SUSPECTED),
+            (0, 1, "related to", WebEdgeType.RELATED_TO),
+            (1, 2, "knows", WebEdgeType.KNOWS),
+            (1, 3, "attended", WebEdgeType.ATTENDED),
+            (1, 4, "called", WebEdgeType.CALLED),
+            (3, 5, "located at", WebEdgeType.LOCATED_AT),
+            (3, 6, "recorded", WebEdgeType.WITNESSED),
+            (2, 7, "supports", WebEdgeType.RELATED_TO),
+            (2, 0, "works at", WebEdgeType.WORKS_AT),
         ]
 
         for src_idx, tgt_idx, label, etype in edges_data:
@@ -229,6 +229,8 @@ class WebSyncService:
                 node = existing_nodes[node_id]
                 node.label = node_data["label"]
                 node.description = node_data.get("description")
+                if node_data.get("node_type"):
+                    node.node_type = WebNodeType(node_data["node_type"])
                 node.x = node_data.get("x", node.x)
                 node.y = node_data.get("y", node.y)
                 node.color = node_data.get("color", node.color)

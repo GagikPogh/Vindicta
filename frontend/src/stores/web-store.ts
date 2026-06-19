@@ -3,34 +3,29 @@
 import { create } from "zustand";
 
 import { api } from "@/lib/api";
+import {
+  NODE_COLORS,
+  NODE_EMOJI,
+  WEB_NODE_TYPES,
+  type WebNodeType,
+} from "@/lib/i18n/web";
 import type { InvestigationWeb, WebEdge, WebNode } from "@/lib/types";
 
-export const NODE_TYPE_CONFIG: Record<string, { label: string; color: string; emoji: string }> = {
-  person: { label: "Человек", color: "#8b7cf6", emoji: "👤" },
-  friend: { label: "Друг", color: "#a78bfa", emoji: "🤝" },
-  event: { label: "Событие", color: "#f472b6", emoji: "📅" },
-  phone: { label: "Телефон", color: "#34d399", emoji: "📱" },
-  location: { label: "Локация", color: "#38bdf8", emoji: "📍" },
-  organization: { label: "Организация", color: "#fbbf24", emoji: "🏢" },
-  evidence: { label: "Улика", color: "#fb923c", emoji: "🔍" },
-  document: { label: "Документ", color: "#94a3b8", emoji: "📄" },
-  suspect: { label: "Подозреваемый", color: "#ef4444", emoji: "🎯" },
-  note: { label: "Заметка", color: "#c084fc", emoji: "📝" },
-};
+export { NODE_EMOJI, NODE_COLORS, WEB_NODE_TYPES, type WebNodeType };
 
-export const EDGE_TYPE_LABELS: Record<string, string> = {
-  knows: "знает",
-  friend_of: "друг",
-  related_to: "связан с",
-  attended: "присутствовал",
-  called: "звонил",
-  located_at: "находится в",
-  works_at: "работает в",
-  owns: "владеет",
-  suspected: "подозревает",
-  witnessed: "свидетель",
-  custom: "связь",
-};
+export const NODE_TYPE_CONFIG: Record<
+  string,
+  { color: string; emoji: string }
+> = Object.fromEntries(
+  WEB_NODE_TYPES.map((type) => [
+    type,
+    { color: NODE_COLORS[type], emoji: NODE_EMOJI[type] },
+  ])
+);
+
+// Legacy DB node types still render on the graph
+NODE_TYPE_CONFIG.friend = { color: NODE_COLORS.person, emoji: NODE_EMOJI.person };
+NODE_TYPE_CONFIG.suspect = { color: NODE_COLORS.person, emoji: NODE_EMOJI.person };
 
 type SyncStatus = "idle" | "saving" | "saved" | "syncing" | "conflict" | "error";
 
@@ -45,13 +40,17 @@ interface WebState {
   deletedEdgeIds: string[];
   syncStatus: SyncStatus;
   isLoading: boolean;
+  loadError: string | null;
   dirty: boolean;
+  isDragging: boolean;
+  pullPaused: boolean;
 
   loadWeb: () => Promise<void>;
   pullSync: () => Promise<void>;
   pushSync: () => Promise<void>;
   setSelectedNode: (id: string | null) => void;
   setLinkSource: (id: string | null) => void;
+  setDragging: (dragging: boolean) => void;
   addNode: (type: string, label: string, x?: number, y?: number) => void;
   updateNode: (id: string, updates: Partial<WebNode>) => void;
   deleteNode: (id: string) => void;
@@ -78,10 +77,13 @@ export const useWebStore = create<WebState>((set, get) => ({
   deletedEdgeIds: [],
   syncStatus: "idle",
   isLoading: true,
+  loadError: null,
   dirty: false,
+  isDragging: false,
+  pullPaused: false,
 
   loadWeb: async () => {
-    set({ isLoading: true });
+    set({ isLoading: true, loadError: null });
     try {
       const web = await api.web.getDefault();
       set({
@@ -90,21 +92,25 @@ export const useWebStore = create<WebState>((set, get) => ({
         edges: web.edges,
         revision: web.revision,
         isLoading: false,
+        loadError: null,
         dirty: false,
         deletedNodeIds: [],
         deletedEdgeIds: [],
+        syncStatus: "saved",
       });
-    } catch {
-      set({ isLoading: false, syncStatus: "error" });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Load failed";
+      set({ isLoading: false, loadError: message, syncStatus: "error" });
     }
   },
 
   pullSync: async () => {
-    const { web, revision } = get();
-    if (!web) return;
+    const { web, revision, dirty, isDragging, pullPaused } = get();
+    if (!web || dirty || isDragging || pullPaused) return;
+
     set({ syncStatus: "syncing" });
     try {
-      const updated = await api.web.get(web.id);
+      const updated = await api.web.get(web.id, revision);
       if (updated.revision > revision) {
         set({
           nodes: updated.nodes,
@@ -112,12 +118,16 @@ export const useWebStore = create<WebState>((set, get) => ({
           revision: updated.revision,
           web: updated,
           syncStatus: "saved",
-          dirty: false,
         });
       } else {
         set({ syncStatus: "saved" });
       }
-    } catch {
+    } catch (err) {
+      // 304 / not modified — keep local state
+      if (err instanceof Error && err.message.includes("304")) {
+        set({ syncStatus: "saved" });
+        return;
+      }
       set({ syncStatus: "idle" });
     }
   },
@@ -126,10 +136,12 @@ export const useWebStore = create<WebState>((set, get) => ({
     const state = get();
     if (!state.web || !state.dirty) return;
 
+    const snapshotRevision = state.revision;
     set({ syncStatus: "saving" });
+
     try {
       const result = await api.web.sync(state.web.id, {
-        revision: state.revision,
+        revision: snapshotRevision,
         nodes: state.nodes,
         edges: state.edges,
         deleted_node_ids: state.deletedNodeIds,
@@ -182,6 +194,9 @@ export const useWebStore = create<WebState>((set, get) => ({
   setSelectedNode: (id) => set({ selectedNodeId: id }),
   setLinkSource: (id) => set({ linkSourceId: id }),
 
+  setDragging: (dragging) =>
+    set({ isDragging: dragging, pullPaused: dragging ? true : get().pullPaused }),
+
   addNode: (type, label, x = 0, y = 0) => {
     const config = NODE_TYPE_CONFIG[type] || NODE_TYPE_CONFIG.person;
     const node: WebNode = {
@@ -194,14 +209,19 @@ export const useWebStore = create<WebState>((set, get) => ({
       properties: {},
       is_pinned: false,
     };
-    set((s) => ({ nodes: [...s.nodes, node], dirty: true, selectedNodeId: node.id }));
-    setTimeout(() => get().pushSync(), 100);
+    set((s) => ({
+      nodes: [...s.nodes, node],
+      dirty: true,
+      selectedNodeId: node.id,
+      syncStatus: "idle",
+    }));
   },
 
   updateNode: (id, updates) => {
     set((s) => ({
       nodes: s.nodes.map((n) => (n.id === id ? { ...n, ...updates } : n)),
       dirty: true,
+      syncStatus: "idle",
     }));
   },
 
@@ -212,11 +232,11 @@ export const useWebStore = create<WebState>((set, get) => ({
       deletedNodeIds: [...s.deletedNodeIds, id],
       selectedNodeId: s.selectedNodeId === id ? null : s.selectedNodeId,
       dirty: true,
+      syncStatus: "idle",
     }));
-    setTimeout(() => get().pushSync(), 100);
   },
 
-  addEdge: (sourceId, targetId, label = "связан с", edgeType = "custom") => {
+  addEdge: (sourceId, targetId, label = "related to", edgeType = "related_to") => {
     if (sourceId === targetId) return;
     const exists = get().edges.some(
       (e) => e.source_id === sourceId && e.target_id === targetId && e.label === label
@@ -232,14 +252,19 @@ export const useWebStore = create<WebState>((set, get) => ({
       properties: {},
       strength: 1,
     };
-    set((s) => ({ edges: [...s.edges, edge], dirty: true, linkSourceId: null }));
-    setTimeout(() => get().pushSync(), 100);
+    set((s) => ({
+      edges: [...s.edges, edge],
+      dirty: true,
+      linkSourceId: null,
+      syncStatus: "idle",
+    }));
   },
 
   updateEdge: (id, updates) => {
     set((s) => ({
       edges: s.edges.map((e) => (e.id === id ? { ...e, ...updates } : e)),
       dirty: true,
+      syncStatus: "idle",
     }));
   },
 
@@ -248,16 +273,17 @@ export const useWebStore = create<WebState>((set, get) => ({
       edges: s.edges.filter((e) => e.id !== id),
       deletedEdgeIds: [...s.deletedEdgeIds, id],
       dirty: true,
+      syncStatus: "idle",
     }));
-    setTimeout(() => get().pushSync(), 100);
   },
 
   updateNodePosition: (id, x, y) => {
     set((s) => ({
       nodes: s.nodes.map((n) => (n.id === id ? { ...n, x, y, is_pinned: true } : n)),
       dirty: true,
+      syncStatus: "idle",
     }));
   },
 
-  markDirty: () => set({ dirty: true }),
+  markDirty: () => set({ dirty: true, syncStatus: "idle" }),
 }));

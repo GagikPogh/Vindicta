@@ -13,11 +13,12 @@ import {
   Clock,
 } from "lucide-react";
 
+import { detectWebLocale, getWebMessages } from "@/lib/i18n/web";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/dashboard", label: "Home", icon: LayoutDashboard },
-  { href: "/web", label: "Web", icon: Network },
+  { href: "/web", labelKey: "nav" as const, icon: Network },
   { href: "/phone", label: "Phone", icon: Phone },
   { href: "/graph", label: "Graph", icon: GitBranch },
   { href: "/search", label: "Search", icon: Search },
@@ -28,6 +29,7 @@ const navItems = [
 
 export function MobileNav() {
   const pathname = usePathname();
+  const webNavLabel = getWebMessages(detectWebLocale()).nav;
 
   return (
     <nav className="fixed bottom-0 inset-x-0 z-50 lg:hidden safe-bottom">
@@ -36,6 +38,7 @@ export function MobileNav() {
           {navItems.slice(0, 5).map((item) => {
             const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`);
             const Icon = item.icon;
+            const label = "labelKey" in item && item.labelKey === "nav" ? webNavLabel : item.label;
             return (
               <Link
                 key={item.href}
@@ -46,7 +49,7 @@ export function MobileNav() {
                 )}
               >
                 <Icon className={cn("h-5 w-5", isActive && "drop-shadow-[0_0_8px_var(--vindicta-glow)]")} />
-                <span className="text-[10px] font-medium">{item.label}</span>
+                <span className="text-[10px] font-medium">{label}</span>
               </Link>
             );
           })}

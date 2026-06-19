@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -19,17 +19,26 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  getWebMessages,
+  WEB_NODE_TYPES,
+  type WebLocale,
+} from "@/lib/i18n/web";
 import { NODE_TYPE_CONFIG, useWebStore } from "@/stores/web-store";
 
-export function WebToolbar() {
+interface WebToolbarProps {
+  locale?: WebLocale;
+}
+
+export function WebToolbar({ locale = "en" }: WebToolbarProps) {
   const addNode = useWebStore((s) => s.addNode);
+  const t = useMemo(() => getWebMessages(locale), [locale]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [label, setLabel] = useState("");
-  const [nodeType, setNodeType] = useState("person");
+  const [nodeType, setNodeType] = useState<string>("person");
 
   const handleQuickAdd = (type: string) => {
-    const config = NODE_TYPE_CONFIG[type];
-    addNode(type, `Новый: ${config.label}`);
+    addNode(type, `${t.newPrefix}: ${t.nodeTypes[type as keyof typeof t.nodeTypes]}`);
   };
 
   const handleCustomAdd = (e: React.FormEvent) => {
@@ -47,15 +56,15 @@ export function WebToolbar() {
           render={
             <Button size="sm" className="gap-1">
               <Plus className="h-4 w-4" />
-              <span className="hidden sm:inline">Добавить</span>
+              <span className="hidden sm:inline">{t.add}</span>
             </Button>
           }
         />
-        <DropdownMenuContent className="glass-strong w-48">
-          {Object.entries(NODE_TYPE_CONFIG).map(([key, cfg]) => (
+        <DropdownMenuContent className="glass-strong w-52">
+          {WEB_NODE_TYPES.map((key) => (
             <DropdownMenuItem key={key} onClick={() => handleQuickAdd(key)}>
-              <span className="mr-2">{cfg.emoji}</span>
-              {cfg.label}
+              <span className="mr-2">{NODE_TYPE_CONFIG[key].emoji}</span>
+              {t.nodeTypes[key]}
             </DropdownMenuItem>
           ))}
         </DropdownMenuContent>
@@ -65,27 +74,27 @@ export function WebToolbar() {
         <DialogTrigger
           render={
             <Button size="sm" variant="outline" className="hidden sm:flex">
-              По имени
+              {t.addByName}
             </Button>
           }
         />
         <DialogContent className="glass-strong border-glass-border">
           <DialogHeader>
-            <DialogTitle>Новый узел расследования</DialogTitle>
+            <DialogTitle>{t.newNode}</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleCustomAdd} className="space-y-4 mt-2">
             <div className="space-y-2">
-              <Label>Имя / событие / улика</Label>
+              <Label>{t.nameLabel}</Label>
               <Input
                 value={label}
                 onChange={(e) => setLabel(e.target.value)}
-                placeholder="Иван Петров, Встреча 15.03..."
+                placeholder={t.namePlaceholder}
                 required
                 autoFocus
               />
             </div>
             <div className="grid grid-cols-2 gap-2">
-              {Object.entries(NODE_TYPE_CONFIG).slice(0, 6).map(([key, cfg]) => (
+              {WEB_NODE_TYPES.map((key) => (
                 <button
                   key={key}
                   type="button"
@@ -96,11 +105,11 @@ export function WebToolbar() {
                       : "border-glass-border hover:bg-accent"
                   }`}
                 >
-                  {cfg.emoji} {cfg.label}
+                  {NODE_TYPE_CONFIG[key].emoji} {t.nodeTypes[key]}
                 </button>
               ))}
             </div>
-            <Button type="submit" className="w-full">Добавить в паутину</Button>
+            <Button type="submit" className="w-full">{t.addToGraph}</Button>
           </form>
         </DialogContent>
       </Dialog>

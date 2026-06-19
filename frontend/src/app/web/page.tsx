@@ -2,11 +2,15 @@
 
 import { motion } from "framer-motion";
 import { Network } from "lucide-react";
+import { useMemo } from "react";
 
 import { AppShell } from "@/components/layout/app-shell";
 import { DetectiveCanvas } from "@/components/web/detective-canvas";
+import { detectWebLocale, getWebMessages } from "@/lib/i18n/web";
 
 export default function WebPage() {
+  const t = useMemo(() => getWebMessages(detectWebLocale()), []);
+
   return (
     <AppShell>
       <motion.div
@@ -19,10 +23,8 @@ export default function WebPage() {
             <Network className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h1 className="text-lg sm:text-xl font-bold tracking-tight">Паутина детектива</h1>
-            <p className="text-xs text-muted-foreground">
-              Связывайте людей, события, улики — синхронизация на всех устройствах
-            </p>
+            <h1 className="text-lg sm:text-xl font-bold tracking-tight">{t.title}</h1>
+            <p className="text-xs text-muted-foreground">{t.subtitle}</p>
           </div>
         </div>
         <div className="px-2 sm:px-4 lg:px-6">
