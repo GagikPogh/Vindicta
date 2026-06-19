@@ -18,6 +18,10 @@
   --color-cyber-green: #7cffb2;
   --color-graphite: #12121a;
   --color-graphite-2: #1a1a26;
+  --color-graphite-950: #0d0d11;
+  --color-graphite-900: #1a1a24;
+  --color-vindicta-red: #ff0033;
+  --color-vindicta-red-dim: #3a0008;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -202,17 +206,76 @@
   to { transform: rotate(360deg); }
 }
 
+@keyframes irisSpinReverse {
+  from { transform: rotate(360deg); }
+  to { transform: rotate(0deg); }
+}
+
 @keyframes irisOpen {
   0%, 100% { stroke-dashoffset: 80; opacity: 0.6; }
   50% { stroke-dashoffset: 10; opacity: 1; }
 }
 
+@keyframes glitchPulse {
+  0%, 100% { background-position: 0% 50%; filter: brightness(1); }
+  50% { background-position: 100% 50%; filter: brightness(1.25); }
+}
+
+@keyframes glitchSliceA {
+  0%, 100% { transform: translate(0, 0); opacity: 0; }
+  20% { transform: translate(-2px, -1px); opacity: 0.8; }
+  40% { transform: translate(2px, 1px); opacity: 0; }
+  60% { transform: translate(-1px, 0); opacity: 0.6; }
+  80% { transform: translate(1px, 1px); opacity: 0; }
+}
+
+@keyframes glitchSliceB {
+  0%, 100% { transform: translate(0, 0); opacity: 0; }
+  25% { transform: translate(2px, 1px); opacity: 0.7; }
+  50% { transform: translate(-2px, -1px); opacity: 0; }
+  75% { transform: translate(1px, -1px); opacity: 0.5; }
+}
+
+@keyframes laserSweep {
+  0% { top: 0%; opacity: 0.9; }
+  100% { top: 100%; opacity: 0; }
+}
+
+@keyframes neonPulse {
+  0%, 100% { box-shadow: 0 0 0px rgba(255, 0, 51, 0); }
+  50% { box-shadow: 0 0 18px 2px rgba(255, 0, 51, 0.55); }
+}
+
 .animate-irisSpin {
-  animation: irisSpin 4s linear infinite;
+  animation: irisSpin 3.5s linear infinite;
+}
+
+.animate-irisSpinReverse {
+  animation: irisSpinReverse 5s linear infinite;
 }
 
 .animate-irisOpen {
   animation: irisOpen 1.6s ease-in-out infinite;
+}
+
+.animate-glitchPulse {
+  animation: glitchPulse 3.2s ease-in-out infinite;
+}
+
+.animate-glitchSliceA {
+  animation: glitchSliceA 0.6s steps(6) infinite;
+}
+
+.animate-glitchSliceB {
+  animation: glitchSliceB 0.7s steps(5) infinite;
+}
+
+.animate-laserSweep {
+  animation: laserSweep 0.9s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+}
+
+.animate-neonPulse {
+  animation: neonPulse 2.4s ease-in-out infinite;
 }
 
 @media (max-width: 640px) {

@@ -2,34 +2,36 @@
 
 import { motion } from "framer-motion";
 import { Network } from "lucide-react";
-import { useMemo } from "react";
 
 import { AppShell } from "@/components/layout/app-shell";
-import { DetectiveCanvas } from "@/components/web/detective-canvas";
-import { detectWebLocale, getWebMessages } from "@/lib/i18n/web";
+import { LinkAnalysisGrid } from "@/components/web/LinkAnalysisGrid";
+import { StaggerReveal } from "@/components/hud/stagger-reveal";
+import { hudTransition } from "@/lib/motion";
 
 export default function WebPage() {
-  const t = useMemo(() => getWebMessages(detectWebLocale()), []);
-
   return (
     <AppShell>
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
+        transition={hudTransition(0.45)}
         className="max-w-[100vw] -mx-4 sm:-mx-6 lg:-mx-8"
+        style={{ willChange: "opacity" }}
       >
-        <div className="px-4 sm:px-6 lg:px-8 mb-3 flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/20">
-            <Network className="h-5 w-5 text-primary" />
+        <StaggerReveal index={0} className="mb-3 flex items-center gap-3 px-4 sm:px-6 lg:px-8">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-vindicta-red/15">
+            <Network className="h-5 w-5 text-vindicta-red" />
           </div>
           <div>
-            <h1 className="text-lg sm:text-xl font-bold tracking-tight">{t.title}</h1>
-            <p className="text-xs text-muted-foreground">{t.subtitle}</p>
+            <h1 className="text-lg font-bold tracking-tight sm:text-xl">Link Analysis</h1>
+            <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
+              Entity relationship mapping — multi-device sync
+            </p>
           </div>
-        </div>
-        <div className="px-2 sm:px-4 lg:px-6">
-          <DetectiveCanvas />
-        </div>
+        </StaggerReveal>
+        <StaggerReveal index={1} className="px-2 sm:px-4 lg:px-6">
+          <LinkAnalysisGrid />
+        </StaggerReveal>
       </motion.div>
     </AppShell>
   );

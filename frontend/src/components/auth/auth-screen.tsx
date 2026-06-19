@@ -1,78 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { motion } from "framer-motion";
 
+import { ScanField } from "@/components/hud/scan-field";
 import { GlitchButton } from "@/components/ui/glitch-button";
 import { ScrambleText } from "@/components/ui/scramble-text";
-
-const HASH_CHARS = "0123456789abcdef";
-
-function fakeHash(len = 12) {
-  return Array.from({ length: len }, () => HASH_CHARS[Math.floor(Math.random() * 16)]).join("");
-}
-
-interface ScanFieldProps {
-  label: string;
-  type?: string;
-  name: string;
-  autoComplete?: string;
-  value?: string;
-  onChange?: (value: string) => void;
-  required?: boolean;
-  placeholder?: string;
-}
-
-function ScanField({
-  label,
-  type = "text",
-  name,
-  autoComplete,
-  value,
-  onChange,
-  required,
-  placeholder,
-}: ScanFieldProps) {
-  const [focused, setFocused] = useState(false);
-  const [hash, setHash] = useState(fakeHash);
-
-  useEffect(() => {
-    if (!focused) return;
-    const id = setInterval(() => setHash(fakeHash()), 220);
-    return () => clearInterval(id);
-  }, [focused]);
-
-  return (
-    <div className="space-y-1.5">
-      <div className="flex items-center justify-between gap-2">
-        <label htmlFor={name} className="font-mono text-[10px] uppercase tracking-[0.18em] text-cyber-mute">
-          {label}
-        </label>
-        {focused && (
-          <span className="font-mono text-[9px] text-crimson/80 tabular-nums">{hash}</span>
-        )}
-      </div>
-      <input
-        id={name}
-        name={name}
-        type={type}
-        autoComplete={autoComplete}
-        required={required}
-        placeholder={placeholder}
-        value={value}
-        onChange={(e) => onChange?.(e.target.value)}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
-        className={[
-          "w-full bg-graphite-2/80 px-4 py-3 font-mono text-sm text-cyber-white",
-          "border border-white/10 outline-none transition-all duration-300",
-          "placeholder:text-cyber-mute/50",
-          focused ? "border-crimson shadow-glow-sm" : "hover:border-white/20",
-        ].join(" ")}
-      />
-    </div>
-  );
-}
+import { hudTransition, staggerDelay } from "@/lib/motion";
 
 interface AuthScreenProps {
   mode?: "login" | "register";
@@ -88,28 +22,30 @@ export function AuthScreen({ mode = "login", loading = false, onSubmit }: AuthSc
   const fields =
     mode === "register"
       ? [
-          { label: "Full name", name: "full_name", autoComplete: "name", value: fullName, set: setFullName },
-          { label: "Email", name: "email", type: "email", autoComplete: "email", value: email, set: setEmail },
-          { label: "Password", name: "password", type: "password", autoComplete: "new-password", value: password, set: setPassword },
+          { label: "FULL NAME", name: "full_name", autoComplete: "name", value: fullName, set: setFullName },
+          { label: "EMAIL", name: "email", type: "email", autoComplete: "email", value: email, set: setEmail },
+          { label: "PASSWORD", name: "password", type: "password", autoComplete: "new-password", value: password, set: setPassword },
         ]
       : [
-          { label: "Email", name: "email", type: "email", autoComplete: "email", value: email, set: setEmail },
-          { label: "Password", name: "password", type: "password", autoComplete: "current-password", value: password, set: setPassword },
+          { label: "EMAIL", name: "email", type: "email", autoComplete: "email", value: email, set: setEmail },
+          { label: "PASSWORD", name: "password", type: "password", autoComplete: "current-password", value: password, set: setPassword },
         ];
 
   return (
     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.4 }}
+      initial={{ opacity: 0, scale: 0.98 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={hudTransition(0.45)}
       className="relative z-10 w-full max-w-sm"
+      style={{ willChange: "transform, opacity" }}
     >
       <motion.div
         aria-hidden
-        initial={{ top: "-10%" }}
-        animate={{ top: "110%" }}
-        transition={{ duration: 0.9, ease: "easeIn" }}
-        className="pointer-events-none absolute left-0 z-20 h-px w-full bg-crimson shadow-glow-sm"
+        initial={{ opacity: 0.9, y: 0 }}
+        animate={{ opacity: 0, y: "110%" }}
+        transition={hudTransition(0.9)}
+        className="pointer-events-none absolute left-0 top-0 z-20 h-px w-full bg-vindicta-red shadow-glow-sm"
+        style={{ willChange: "transform, opacity" }}
       />
 
       <div className="v-hud-corners relative border border-white/10 bg-graphite/80 p-8 backdrop-blur-sm">
@@ -132,25 +68,21 @@ export function AuthScreen({ mode = "login", loading = false, onSubmit }: AuthSc
           className="space-y-5"
         >
           {fields.map((f, i) => (
-            <motion.div
+            <ScanField
               key={f.name}
-              initial={{ clipPath: "inset(0 0 100% 0)", opacity: 0 }}
-              animate={{ clipPath: "inset(0 0 0% 0)", opacity: 1 }}
-              transition={{ duration: 0.5, delay: 0.25 + i * 0.12, ease: [0.2, 0.9, 0.2, 1] }}
-            >
-              <ScanField
-                label={f.label}
-                name={f.name}
-                type={f.type}
-                autoComplete={f.autoComplete}
-                value={f.value}
-                onChange={f.set}
-                required
-              />
-            </motion.div>
+              label={f.label}
+              name={f.name}
+              type={f.type}
+              autoComplete={f.autoComplete}
+              value={f.value}
+              onChange={f.set}
+              required
+              clipReveal
+              revealDelay={staggerDelay(i + 2)}
+            />
           ))}
 
-          <GlitchButton type="submit" className="mt-2 w-full" disabled={loading}>
+          <GlitchButton type="submit" className="mt-2 w-full animate-glitchPulse" disabled={loading}>
             {loading
               ? "Processing..."
               : mode === "register"

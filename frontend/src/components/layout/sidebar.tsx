@@ -7,7 +7,7 @@ import {
   GitBranch,
   LayoutDashboard,
   Network,
-  Phone,
+  Radar,
   Search,
   Settings,
   Shield,
@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils";
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/search", label: "Search", icon: Search },
-  { href: "/phone", label: "Phone Intel", icon: Phone },
+  { href: "/analytics", label: "Threat Intel", icon: Radar },
   { href: "/web", labelKey: "nav" as const, icon: Network },
   { href: "/investigations", label: "Investigations", icon: FolderSearch },
   { href: "/graph", label: "Graph", icon: GitBranch },

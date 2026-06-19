@@ -58,6 +58,7 @@ interface WebState {
   updateEdge: (id: string, updates: Partial<WebEdge>) => void;
   deleteEdge: (id: string) => void;
   updateNodePosition: (id: string, x: number, y: number) => void;
+  updateNodePositionLive: (id: string, x: number, y: number) => void;
   applyServerWeb: (web: InvestigationWeb) => void;
   markDirty: () => void;
 }
@@ -106,7 +107,8 @@ export const useWebStore = create<WebState>((set, get) => ({
 
   pullSync: async () => {
     const { web, revision, dirty, isDragging, pullPaused } = get();
-    if (!web || dirty || isDragging || pullPaused) return;
+    if (!web || isDragging || pullPaused) return;
+    if (dirty) return;
 
     set({ syncStatus: "syncing" });
     try {
@@ -123,7 +125,6 @@ export const useWebStore = create<WebState>((set, get) => ({
         set({ syncStatus: "saved" });
       }
     } catch (err) {
-      // 304 / not modified — keep local state
       if (err instanceof Error && err.message.includes("304")) {
         set({ syncStatus: "saved" });
         return;
@@ -280,6 +281,14 @@ export const useWebStore = create<WebState>((set, get) => ({
   updateNodePosition: (id, x, y) => {
     set((s) => ({
       nodes: s.nodes.map((n) => (n.id === id ? { ...n, x, y, is_pinned: true } : n)),
+      dirty: true,
+      syncStatus: "idle",
+    }));
+  },
+
+  updateNodePositionLive: (id, x, y) => {
+    set((s) => ({
+      nodes: s.nodes.map((n) => (n.id === id ? { ...n, x, y } : n)),
       dirty: true,
       syncStatus: "idle",
     }));

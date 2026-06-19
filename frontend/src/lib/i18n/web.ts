@@ -158,14 +158,14 @@ export const NODE_EMOJI: Record<WebNodeType, string> = {
 };
 
 export const NODE_COLORS: Record<WebNodeType, string> = {
-  person: "#8b7cf6",
-  event: "#f472b6",
-  location: "#38bdf8",
-  organization: "#fbbf24",
-  evidence: "#fb923c",
-  document: "#94a3b8",
-  phone: "#34d399",
-  note: "#c084fc",
+  person: "#FF335C",
+  event: "#FF8A65",
+  location: "#7CFFB2",
+  organization: "#FFD166",
+  evidence: "#E8E8F0",
+  document: "#8A8A99",
+  phone: "#FF0033",
+  note: "#B8B8C8",
 };
 
 export function nodeTypeLabel(type: string, t: WebMessages): string {

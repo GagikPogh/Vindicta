@@ -53,8 +53,9 @@ export function WebToolbar({ locale = "en" }: WebToolbarProps) {
     <div className="flex items-center gap-1 flex-wrap">
       <DropdownMenu>
         <DropdownMenuTrigger
+          nativeButton={false}
           render={
-            <Button size="sm" className="gap-1">
+            <Button size="sm" className="gap-1" nativeButton>
               <Plus className="h-4 w-4" />
               <span className="hidden sm:inline">{t.add}</span>
             </Button>
@@ -72,8 +73,9 @@ export function WebToolbar({ locale = "en" }: WebToolbarProps) {
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogTrigger
+          nativeButton={false}
           render={
-            <Button size="sm" variant="outline" className="hidden sm:flex">
+            <Button size="sm" variant="outline" className="hidden sm:flex" nativeButton>
               {t.addByName}
             </Button>
           }

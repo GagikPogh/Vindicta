@@ -29,6 +29,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api } from "@/lib/api";
 import type { DashboardStats } from "@/lib/types";
+import { hudFadeUp, hudTransition, staggerDelay } from "@/lib/motion";
 
 const chartData = [
   { day: "Mon", investigations: 4, entities: 12 },
@@ -73,7 +74,7 @@ export default function DashboardPage() {
           title="Dashboard"
           description="Overview of your investigative operations"
           action={
-            <Button render={<Link href="/investigations" />}>
+            <Button nativeButton={false} render={<Link href="/investigations" />}>
               New Investigation
               <ArrowUpRight className="h-4 w-4" />
             </Button>
@@ -86,9 +87,10 @@ export default function DashboardPage() {
             return (
               <motion.div
                 key={stat.key}
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.08 }}
+                initial={hudFadeUp.initial}
+                animate={hudFadeUp.animate}
+                transition={hudTransition(0.55, staggerDelay(i))}
+                style={{ willChange: "transform, opacity" }}
               >
                 <GlassCard className="p-4 sm:p-5">
                   {loading ? (

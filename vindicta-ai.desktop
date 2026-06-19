@@ -1,0 +1,13 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Vindicta AI
+GenericName=Investigative Intelligence Platform
+Comment=Запуск Vindicta AI — frontend, backend и базы данных
+Exec=/home/gagik/vindicta/start-vindicta.sh
+Icon=/home/gagik/vindicta/assets/vindicta-icon.svg
+Path=/home/gagik/vindicta
+Terminal=true
+Categories=Development;Network;Office;
+Keywords=vindicta;osint;investigation;graph;
+StartupNotify=true

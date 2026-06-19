@@ -197,7 +197,7 @@ function SearchResultCard({ result }: { result: SearchResult }) {
             </span>
           </div>
         </div>
-        <Button variant="outline" size="sm" render={<Link href={`/graph?entity=${result.id}`} />}>
+        <Button variant="outline" size="sm" nativeButton={false} render={<Link href={`/graph?entity=${result.id}`} />}>
           View graph
         </Button>
       </div>

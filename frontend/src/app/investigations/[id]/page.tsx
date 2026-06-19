@@ -105,7 +105,7 @@ export default function InvestigationDetailPage() {
       <AppShell>
         <GlassCard className="p-8 text-center max-w-md mx-auto">
           <p className="text-muted-foreground">Investigation not found</p>
-          <Button className="mt-4" render={<Link href="/investigations" />}>
+          <Button className="mt-4" nativeButton={false} render={<Link href="/investigations" />}>
             Back to investigations
           </Button>
         </GlassCard>
@@ -117,7 +117,7 @@ export default function InvestigationDetailPage() {
     <AppShell>
       <div className="space-y-6 max-w-5xl mx-auto">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon-sm" render={<Link href="/investigations" />}>
+          <Button variant="ghost" size="icon-sm" nativeButton={false} render={<Link href="/investigations" />}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div className="min-w-0 flex-1">
@@ -229,7 +229,7 @@ export default function InvestigationDetailPage() {
                       <Badge variant="destructive">Risk {entity.risk_score}</Badge>
                     )}
                     {entity.neo4j_id && (
-                      <Button variant="outline" size="sm" render={<Link href={`/graph?entity=${entity.neo4j_id}`} />}>
+                      <Button variant="outline" size="sm" nativeButton={false} render={<Link href={`/graph?entity=${entity.neo4j_id}`} />}>
                         Graph
                       </Button>
                     )}
@@ -243,7 +243,7 @@ export default function InvestigationDetailPage() {
             {events.length === 0 ? (
               <GlassCard className="p-8 text-center">
                 <p className="text-sm text-muted-foreground mb-3">No timeline events yet.</p>
-                <Button size="sm" render={<Link href={`/timeline?investigation=${id}`} />}>
+                <Button size="sm" nativeButton={false} render={<Link href={`/timeline?investigation=${id}`} />}>
                   Add Events
                 </Button>
               </GlassCard>
@@ -270,7 +270,7 @@ export default function InvestigationDetailPage() {
               <p className="text-sm text-muted-foreground mb-4">
                 Visualize relationships for entities in this investigation.
               </p>
-              <Button render={<Link href="/graph" />}>
+              <Button nativeButton={false} render={<Link href="/graph" />}>
                 Open Relationship Graph
               </Button>
             </GlassCard>
