@@ -33,6 +33,9 @@ class Settings(BaseSettings):
     CORS_ORIGINS: str = "http://localhost:3000"
 
     NUMVERIFY_API_KEY: str = ""
+    TWILIO_ACCOUNT_SID: str = ""
+    TWILIO_AUTH_TOKEN: str = ""
+    TRUECALLER_API_KEY: str = ""
 
     @property
     def cors_origins_list(self) -> List[str]:

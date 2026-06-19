@@ -105,11 +105,11 @@ class InternalDatabaseProvider(PhoneIntelProvider):
         }
 
 
-class CarrierLookupProvider(PhoneIntelProvider):
-    name = "carrier_api"
+class NumverifyProvider(PhoneIntelProvider):
+    name = "numverify"
 
     async def lookup(self, e164: str, db: AsyncSession) -> dict[str, Any]:
-        api_key = getattr(settings, "NUMVERIFY_API_KEY", "") or ""
+        api_key = settings.NUMVERIFY_API_KEY
         if not api_key:
             return {"carrier": None}
 
@@ -136,6 +136,63 @@ class CarrierLookupProvider(PhoneIntelProvider):
                 }
         except Exception:
             return {"carrier": None}
+
+
+class TwilioLookupProvider(PhoneIntelProvider):
+    """Enterprise carrier + CNAM + fraud signals via official Twilio Lookup API."""
+
+    name = "twilio_lookup"
+
+    async def lookup(self, e164: str, db: AsyncSession) -> dict[str, Any]:
+        if not settings.TWILIO_ACCOUNT_SID or not settings.TWILIO_AUTH_TOKEN:
+            return {"carrier": None, "contact_tags": []}
+
+        try:
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.get(
+                    f"https://lookups.twilio.com/v2/PhoneNumbers/{e164}",
+                    params={"Fields": "line_type_intelligence,caller_name"},
+                    auth=(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN),
+                )
+                if resp.status_code != 200:
+                    return {"carrier": None}
+
+                data = resp.json()
+                line_intel = data.get("line_type_intelligence", {}) or {}
+                caller_name = data.get("caller_name", {}) or {}
+
+                result: dict[str, Any] = {
+                    "carrier": {
+                        "name": line_intel.get("carrier_name"),
+                        "line_type": line_intel.get("type"),
+                        "region": f"{data.get('country_code', '')} {line_intel.get('mobile_country_code', '')}".strip(),
+                        "country_code": data.get("country_code"),
+                    },
+                    "national": data.get("national_format"),
+                    "is_valid": data.get("valid", True),
+                }
+
+                cnam = caller_name.get("caller_name")
+                if cnam and caller_name.get("caller_type") != "UNDETERMINED":
+                    result["contact_tags"] = [{
+                        "id": f"twilio-cnam-{e164}",
+                        "tag_name": cnam,
+                        "source": IntelSource.CARRIER_API.value,
+                        "source_detail": "twilio_cnam",
+                        "confidence": 0.75,
+                        "reported_by": None,
+                        "recorded_at": datetime.now(timezone.utc).isoformat(),
+                        "properties": {"caller_type": caller_name.get("caller_type")},
+                    }]
+
+                return result
+        except Exception:
+            return {"carrier": None}
+
+
+class CarrierLookupProvider(NumverifyProvider):
+    """Backward-compatible alias."""
+    name = "carrier_api"
 
 
 class SocialSearchLinksProvider(PhoneIntelProvider):
@@ -190,7 +247,8 @@ class PhoneLookupService:
     def __init__(self):
         self.providers: list[PhoneIntelProvider] = [
             InternalDatabaseProvider(),
-            CarrierLookupProvider(),
+            TwilioLookupProvider(),
+            NumverifyProvider(),
             SocialSearchLinksProvider(),
         ]
 
